@@ -13,7 +13,7 @@ AETHOS is built in 7 phases following its linear dependency chain: Canvas infras
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Canvas rendering, game loop, input capture, Zustand bridge
-- [ ] **Phase 2: Gesture Recognition** - $1 Recognizer integration, shape detection, drawing feedback
+- [x] **Phase 2: Gesture Recognition** - $1 Recognizer integration, shape detection, drawing feedback
 - [ ] **Phase 3: Spell Casting** - Free spells, projectile trajectories, accuracy scaling
 - [ ] **Phase 4: Combat System** - Enemies, collision detection, damage, wave spawning
 - [ ] **Phase 5: Mana and Spell Depth** - 3-tier mana system, utility spells, ultimate, loadouts
@@ -57,8 +57,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- $1 Recognizer integration, gesture templates (8 shapes x 3 variations), recognition wiring into GameEngine
-- [ ] 02-02-PLAN.md -- Visual feedback (trail color change, shape name display), trajectory extraction, keyboard shortcuts (Q/W/E)
+- [x] 02-01-PLAN.md -- $1 Recognizer integration, gesture templates (8 shapes x 3 variations), recognition wiring into GameEngine
+- [x] 02-02-PLAN.md -- Visual feedback (trail color change, shape name display), trajectory extraction, keyboard shortcuts (Q/W/E)
 
 ### Phase 3: Spell Casting
 **Goal**: Recognized gestures fire visible spell projectiles that follow the player's drawn trajectory, with accuracy from gesture quality affecting spell power
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | Phase | Plans Complete | Status | Completed |
 |-------|---------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-02-06 |
-| 2. Gesture Recognition | 0/2 | Not started | - |
+| 2. Gesture Recognition | 2/2 | Complete | 2026-02-07 |
 | 3. Spell Casting | 0/2 | Not started | - |
 | 4. Combat System | 0/2 | Not started | - |
 | 5. Mana and Spell Depth | 0/2 | Not started | - |
