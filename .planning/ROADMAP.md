@@ -54,11 +54,11 @@ Plans:
   3. The recognized shape name and accuracy score are displayed on screen immediately after recognition
   4. Player can continue drawing after shape recognition to define a trajectory direction
   5. Keyboard shortcuts (Q, W, E) work as emergency fallback for casting spells without gestures
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: $1 Recognizer integration and gesture templates
-- [ ] 02-02: Visual feedback, trajectory extraction, and fallback controls
+- [ ] 02-01-PLAN.md -- $1 Recognizer integration, gesture templates (8 shapes x 3 variations), recognition wiring into GameEngine
+- [ ] 02-02-PLAN.md -- Visual feedback (trail color change, shape name display), trajectory extraction, keyboard shortcuts (Q/W/E)
 
 ### Phase 3: Spell Casting
 **Goal**: Recognized gestures fire visible spell projectiles that follow the player's drawn trajectory, with accuracy from gesture quality affecting spell power
