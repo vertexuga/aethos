@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Drawing shapes to cast spells must feel magical -- responsive gesture recognition, visual feedback, and spell effects ARE the experience.
-**Current focus:** Phase 3 - Spell Casting
+**Current focus:** Phase 4 - Combat System
 
 ## Current Position
 
-Phase: 3 of 7 (Spell Casting)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-07 -- Completed 03-02-PLAN.md
+Phase: 4 of 7 (Combat System)
+Plan: 0 of 2 in current phase
+Status: Not started
+Last activity: 2026-02-07 -- Phase 3 complete, verified
 
 Progress: [██████░░░░] 43%
 
@@ -88,6 +88,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 03-02-PLAN.md - Accuracy scaling and fireball explosions complete
+Stopped at: Phase 3 complete and verified - all spell casting systems functional
 Resume file: None
-Next: Phase 3 Plan 3 (final spell casting plan) or Phase 4 (Combat Mechanics)
+Next: Phase 4 (Combat System) - enemies, collision detection, damage, wave spawning

@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Canvas rendering, game loop, input capture, Zustand bridge
 - [x] **Phase 2: Gesture Recognition** - $1 Recognizer integration, shape detection, drawing feedback
-- [ ] **Phase 3: Spell Casting** - Free spells, projectile trajectories, accuracy scaling
+- [x] **Phase 3: Spell Casting** - Free spells, projectile trajectories, accuracy scaling
 - [ ] **Phase 4: Combat System** - Enemies, collision detection, damage, wave spawning
 - [ ] **Phase 5: Mana and Spell Depth** - 3-tier mana system, utility spells, ultimate, loadouts
 - [ ] **Phase 6: Levels and Progression** - Tutorial levels, level structure, upgrades, UI screens
@@ -76,8 +76,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Spell config, projectile entities (QuickShot/MagicMissile/Fireball), object pooling, SpellCaster system, GameEngine wiring
-- [ ] 03-02-PLAN.md -- Accuracy-based visual scaling, Fireball AoE explosion, GestureUI spell names, visual verification checkpoint
+- [x] 03-01-PLAN.md -- Spell config, projectile entities (QuickShot/MagicMissile/Fireball), object pooling, SpellCaster system, GameEngine wiring
+- [x] 03-02-PLAN.md -- Accuracy-based visual scaling, Fireball AoE explosion, GestureUI spell names, visual verification checkpoint
 
 ### Phase 4: Combat System
 **Goal**: Spells hit enemies, enemies take damage and die, enemies fight back with contact damage, and the core gameplay loop (draw, cast, kill, survive) is playable end-to-end
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 |-------|---------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-02-06 |
 | 2. Gesture Recognition | 2/2 | Complete | 2026-02-07 |
-| 3. Spell Casting | 0/2 | Not started | - |
+| 3. Spell Casting | 2/2 | Complete | 2026-02-07 |
 | 4. Combat System | 0/2 | Not started | - |
 | 5. Mana and Spell Depth | 0/2 | Not started | - |
 | 6. Levels and Progression | 0/2 | Not started | - |

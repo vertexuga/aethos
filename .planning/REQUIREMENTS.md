@@ -28,18 +28,18 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 
 ### Spell System
 
-- [ ] **SPEL-01**: Three-tier spell system -- Free (0 mana), Utility (35 mana), Ultimate (100 mana) (P1)
-- [ ] **SPEL-02**: Quick Shot spell (circle gesture, 0 mana, fast projectile) (P0)
-- [ ] **SPEL-03**: Magic Missile spell (triangle gesture, 0 mana, homing projectile) (P0)
-- [ ] **SPEL-04**: Fireball spell (zigzag gesture, 0 mana, AoE explosion) (P1)
+- [x] **SPEL-01**: Three-tier spell system -- Free (0 mana), Utility (35 mana), Ultimate (100 mana) (P1)
+- [x] **SPEL-02**: Quick Shot spell (circle gesture, 0 mana, fast projectile) (P0)
+- [x] **SPEL-03**: Magic Missile spell (triangle gesture, 0 mana, homing projectile) (P0)
+- [x] **SPEL-04**: Fireball spell (zigzag gesture, 0 mana, AoE explosion) (P1)
 - [ ] **SPEL-05**: Shield spell (swipe gesture, 35 mana, blocks incoming damage) (P2)
 - [ ] **SPEL-06**: Life Drain spell (spiral gesture, 35 mana, heals on hit) (P2)
 - [ ] **SPEL-07**: Time Slow spell (circle-dot gesture, 35 mana, slows enemies) (P2)
 - [ ] **SPEL-08**: Dash spell (horizontal swipe hold, 35 mana, dodge movement) (P2)
 - [ ] **SPEL-09**: Meteor Storm ultimate (star+circles gesture, 100 mana, massive AoE) (P1)
-- [ ] **SPEL-10**: Projectile entities spawned on cast with trajectory from continued drawing (P1)
+- [x] **SPEL-10**: Projectile entities spawned on cast with trajectory from continued drawing (P1)
 - [ ] **SPEL-11**: Spell loadout selection -- pick 2 utility spells before each level (P2)
-- [ ] **SPEL-12**: Accuracy scaling -- sloppy draws deal reduced damage based on gesture quality (P1)
+- [x] **SPEL-12**: Accuracy scaling -- sloppy draws deal reduced damage based on gesture quality (P1)
 
 ### Combat & Enemies
 
@@ -81,7 +81,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **UIHD-02**: Game HUD with HP bar overlay (P0)
 - [ ] **UIHD-03**: Game HUD with mana bar and threshold indicators (P1)
 - [ ] **UIHD-04**: Spell bar showing available/equipped spells (P1)
-- [ ] **UIHD-05**: Accuracy feedback text on screen ("Perfect!", "Good", "Sloppy") (P1)
+- [x] **UIHD-05**: Accuracy feedback text on screen ("Perfect!", "Good", "Sloppy") (P1)
 - [ ] **UIHD-06**: Archives screen (spell compendium/lore viewer) (P3)
 - [ ] **UIHD-07**: Sigils screen (gesture practice/reference) (P3)
 - [ ] **UIHD-08**: Settings screen (difficulty, accessibility options) (P3)
@@ -96,7 +96,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **VFXP-05**: Screen shake on big spells (3px normal, 5px ultimate) (P1)
 - [ ] **VFXP-06**: Object-pooled particle system (200-300 max desktop) with auto-reduce on FPS drop (P0)
 - [x] **VFXP-07**: Gesture trail with glow/gradient effect during drawing (P0)
-- [ ] **VFXP-08**: Spell color coding -- blue/cyan (free), purple/magenta (utility), gold/orange/red (ultimate) (P1)
+- [x] **VFXP-08**: Spell color coding -- blue/cyan (free), purple/magenta (utility), gold/orange/red (ultimate) (P1)
 
 ### Accessibility
 
@@ -162,18 +162,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEST-04 | Phase 2 | Complete |
 | GEST-05 | Phase 2 | Complete |
 | GEST-06 | Phase 2 | Complete |
-| SPEL-01 | Phase 3 | Pending |
-| SPEL-02 | Phase 3 | Pending |
-| SPEL-03 | Phase 3 | Pending |
-| SPEL-04 | Phase 3 | Pending |
+| SPEL-01 | Phase 3 | Complete |
+| SPEL-02 | Phase 3 | Complete |
+| SPEL-03 | Phase 3 | Complete |
+| SPEL-04 | Phase 3 | Complete |
 | SPEL-05 | Phase 5 | Pending |
 | SPEL-06 | Phase 5 | Pending |
 | SPEL-07 | Phase 5 | Pending |
 | SPEL-08 | Phase 5 | Pending |
 | SPEL-09 | Phase 5 | Pending |
-| SPEL-10 | Phase 3 | Pending |
+| SPEL-10 | Phase 3 | Complete |
 | SPEL-11 | Phase 5 | Pending |
-| SPEL-12 | Phase 3 | Pending |
+| SPEL-12 | Phase 3 | Complete |
 | COMB-01 | Phase 4 | Pending |
 | COMB-02 | Phase 4 | Pending |
 | COMB-03 | Phase 4 | Pending |
@@ -203,7 +203,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UIHD-02 | Phase 4 | Pending |
 | UIHD-03 | Phase 5 | Pending |
 | UIHD-04 | Phase 5 | Pending |
-| UIHD-05 | Phase 3 | Pending |
+| UIHD-05 | Phase 3 | Complete |
 | UIHD-06 | Phase 6 | Pending |
 | UIHD-07 | Phase 6 | Pending |
 | UIHD-08 | Phase 6 | Pending |
@@ -215,7 +215,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VFXP-05 | Phase 7 | Pending |
 | VFXP-06 | Phase 7 | Pending |
 | VFXP-07 | Phase 2 | Complete |
-| VFXP-08 | Phase 3 | Pending |
+| VFXP-08 | Phase 3 | Complete |
 | ACCS-01 | Phase 6 | Pending |
 | ACCS-02 | Phase 6 | Pending |
 | ACCS-03 | Phase 6 | Pending |
