@@ -4,6 +4,7 @@ class InputSystem {
     this.isDrawing = false;
     this.currentPoints = []; // {x, y, timestamp}
     this.trailPoints = []; // {x, y, alpha}
+    this.onStopDrawing = null; // Callback for gesture recognition
 
     // Bind event handlers
     this.handleMouseDown = this.handleMouseDown.bind(this);
@@ -52,6 +53,13 @@ class InputSystem {
 
   stopDrawing() {
     this.isDrawing = false;
+
+    // Trigger gesture recognition callback if enough points
+    if (this.onStopDrawing && typeof this.onStopDrawing === 'function') {
+      if (this.currentPoints.length >= 10) {
+        this.onStopDrawing(this.getPoints());
+      }
+    }
   }
 
   handleMouseDown(e) {

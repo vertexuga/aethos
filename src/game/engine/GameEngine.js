@@ -4,6 +4,7 @@ import EntityManager from '../entities/EntityManager.js';
 import Entity from '../entities/Entity.js';
 import InputSystem from '../systems/InputSystem.js';
 import RenderPipeline from '../systems/RenderPipeline.js';
+import GestureRecognizer from '../systems/GestureRecognizer.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -18,11 +19,16 @@ class GameEngine {
     this.entityManager = null;
     this.inputSystem = null;
     this.renderPipeline = null;
+    this.gestureRecognizer = null;
+
+    // Gesture state
+    this.lastGestureResult = null;
 
     // Bind methods
     this.update = this.update.bind(this);
     this.render = this.render.bind(this);
     this.resize = this.resize.bind(this);
+    this.handleGestureComplete = this.handleGestureComplete.bind(this);
   }
 
   init() {
@@ -33,9 +39,13 @@ class GameEngine {
     this.entityManager = new EntityManager();
     this.inputSystem = new InputSystem(this.canvas);
     this.renderPipeline = new RenderPipeline(this.ctx, this.width, this.height);
+    this.gestureRecognizer = new GestureRecognizer();
 
     // Initialize input system
     this.inputSystem.init();
+
+    // Wire gesture recognition callback
+    this.inputSystem.onStopDrawing = this.handleGestureComplete;
 
     // Spawn 5 test entities with random properties
     const colors = ['#4a8f8f', '#f4e8c1', '#7eb8da'];
@@ -60,6 +70,24 @@ class GameEngine {
 
     // Start the loop
     this.gameLoop.start();
+  }
+
+  handleGestureComplete(points) {
+    // Recognize the gesture from drawn points
+    const result = this.gestureRecognizer.recognize(points);
+
+    if (result) {
+      // Store result locally and in Zustand
+      this.lastGestureResult = result;
+      useGameStore.getState().setLastGesture(result);
+
+      // Debug logging
+      console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`);
+    } else {
+      // No recognition or below threshold
+      this.lastGestureResult = null;
+      useGameStore.getState().clearGesture();
+    }
   }
 
   update(dt) {
@@ -153,6 +181,8 @@ class GameEngine {
     this.entityManager = null;
     this.inputSystem = null;
     this.renderPipeline = null;
+    this.gestureRecognizer = null;
+    this.lastGestureResult = null;
   }
 }
 
