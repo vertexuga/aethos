@@ -8,6 +8,7 @@ import GestureRecognizer from '../systems/GestureRecognizer.js';
 import GestureUI from '../systems/GestureUI.js';
 import TrajectoryExtractor from '../systems/TrajectoryExtractor.js';
 import KeyboardFallback from '../systems/KeyboardFallback.js';
+import SpellCaster from '../systems/SpellCaster.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -25,6 +26,7 @@ class GameEngine {
     this.gestureRecognizer = null;
     this.gestureUI = null;
     this.keyboardFallback = null;
+    this.spellCaster = null;
 
     // Gesture state
     this.lastGestureResult = null;
@@ -48,6 +50,10 @@ class GameEngine {
     this.gestureRecognizer = new GestureRecognizer();
     this.gestureUI = new GestureUI();
     this.keyboardFallback = new KeyboardFallback();
+    this.spellCaster = new SpellCaster(this.entityManager);
+
+    // Set canvas size for spell caster
+    this.spellCaster.setCanvasSize(this.width, this.height);
 
     // Initialize input system
     this.inputSystem.init();
@@ -58,21 +64,6 @@ class GameEngine {
 
     // Wire gesture recognition callback
     this.inputSystem.onStopDrawing = this.handleGestureComplete;
-
-    // Spawn 5 test entities with random properties
-    const colors = ['#4a8f8f', '#f4e8c1', '#7eb8da'];
-    for (let i = 0; i < 5; i++) {
-      const entity = new Entity({
-        x: Math.random() * this.width,
-        y: Math.random() * this.height,
-        vx: (Math.random() - 0.5) * 100, // -50 to 50 pixels/second
-        vy: (Math.random() - 0.5) * 100,
-        size: 8 + Math.random() * 12, // 8 to 20
-        color: colors[i % colors.length],
-        type: 'test'
-      });
-      this.entityManager.add(entity);
-    }
 
     // Create game loop
     this.gameLoop = new GameLoop(this.update, this.render);
@@ -101,6 +92,9 @@ class GameEngine {
       this.gestureUI.showResult(result);
       this.inputSystem.setRecognitionResult(result);
 
+      // Cast the spell (same frame as recognition)
+      this.spellCaster.castSpell(result);
+
       // Debug logging
       console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`, trajectory ? `- Trajectory: ${(trajectory.angle * 180 / Math.PI).toFixed(0)}°` : '- No trajectory');
     } else {
@@ -118,6 +112,9 @@ class GameEngine {
     // Show UI feedback (same as drawn gestures)
     this.gestureUI.showResult(result);
 
+    // Cast the spell
+    this.spellCaster.castSpell(result);
+
     // Debug logging
     console.log(`Keyboard spell: ${result.name}`);
   }
@@ -129,24 +126,36 @@ class GameEngine {
     // Update gesture UI
     this.gestureUI.update(dt);
 
+    // Update spell caster pools
+    this.spellCaster.update(dt);
+
     // Update entity manager
     this.entityManager.update(dt);
 
-    // Apply boundary wrapping for entities
+    // Apply boundary behavior for entities
     const entities = this.entityManager.getAll();
     for (const entity of entities) {
-      // Wrap horizontally
-      if (entity.x < -entity.size) {
-        entity.x = this.width + entity.size;
-      } else if (entity.x > this.width + entity.size) {
-        entity.x = -entity.size;
-      }
+      // Projectiles get destroyed when out of bounds
+      if (entity.type.startsWith('projectile-')) {
+        if (entity.x < -entity.size || entity.x > this.width + entity.size ||
+            entity.y < -entity.size || entity.y > this.height + entity.size) {
+          entity.destroy();
+        }
+      } else {
+        // Non-projectiles wrap around
+        // Wrap horizontally
+        if (entity.x < -entity.size) {
+          entity.x = this.width + entity.size;
+        } else if (entity.x > this.width + entity.size) {
+          entity.x = -entity.size;
+        }
 
-      // Wrap vertically
-      if (entity.y < -entity.size) {
-        entity.y = this.height + entity.size;
-      } else if (entity.y > this.height + entity.size) {
-        entity.y = -entity.size;
+        // Wrap vertically
+        if (entity.y < -entity.size) {
+          entity.y = this.height + entity.size;
+        } else if (entity.y > this.height + entity.size) {
+          entity.y = -entity.size;
+        }
       }
     }
 
@@ -192,6 +201,11 @@ class GameEngine {
     this.height = window.innerHeight;
     this.canvas.width = this.width;
     this.canvas.height = this.height;
+
+    // Update spell caster canvas size
+    if (this.spellCaster) {
+      this.spellCaster.setCanvasSize(this.width, this.height);
+    }
   }
 
   destroy() {
@@ -224,6 +238,7 @@ class GameEngine {
     this.gestureRecognizer = null;
     this.gestureUI = null;
     this.keyboardFallback = null;
+    this.spellCaster = null;
     this.lastGestureResult = null;
   }
 }

@@ -6,8 +6,8 @@ class KeyboardFallback {
       'Q': 'circle',
       'w': 'triangle',   // Magic Missile
       'W': 'triangle',
-      'e': 'line',       // Fireball
-      'E': 'line'
+      'e': 'zigzag',     // Fireball
+      'E': 'zigzag'
     };
 
     // Callback for spell casting
