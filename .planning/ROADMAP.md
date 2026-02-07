@@ -92,11 +92,11 @@ Plans:
   3. The player has an HP bar on the HUD and takes contact damage when enemies reach them
   4. Dead enemies disappear with a visual death effect
   5. Waves of enemies spawn in configurable compositions with increasing challenge
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Enemy entities and collision system
-- [ ] 04-02: Wave spawning and additional enemy types
+- [ ] 04-01-PLAN.md -- Player entity (WASD movement, HP, i-frames), Slime enemy (chase AI, health bar, white flash), EnemyPool, CollisionSystem (circle-circle detection-then-response), HP bar HUD
+- [ ] 04-02-PLAN.md -- Wave spawning system (configurable compositions, increasing difficulty), death particle effects (8-particle radial burst), wave counter HUD, full combat loop integration
 
 ### Phase 5: Mana and Spell Depth
 **Goal**: Player manages a mana resource with visible thresholds, enabling strategic choices between free spam, utility spells at 35 mana, and a devastating ultimate at 100 mana
