@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
+
+:root {
+  --color-bg-dark: #0a0a12;
+  --color-bg-navy: #1a1a2e;
+  --color-accent-blue: #7eb8da;
+  --color-accent-gold: #f4e8c1;
+  --color-accent-teal: #4a8f8f;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes rotate-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Cormorant Garamond', serif;
+  background-color: var(--color-bg-dark);
+  color: var(--color-accent-gold);
+  overflow-x: hidden;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel Decorative', cursive;
+}
+
+.font-cormorant {
+  font-family: 'Cormorant Garamond', serif;
+}
