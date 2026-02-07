@@ -20,6 +20,7 @@ class FireballEntity extends Entity {
     this.explosionRadius = config.explosionRadius;
     this.damageModifier = damageModifier;
     this.age = 0; // milliseconds
+    this.onExpire = null; // Callback for explosion trigger
   }
 
   update(dt) {
@@ -34,6 +35,14 @@ class FireballEntity extends Entity {
     }
   }
 
+  destroy() {
+    // Trigger explosion callback before destroying
+    if (this.onExpire && this.active) {
+      this.onExpire(this.x, this.y, this.damageModifier);
+    }
+    super.destroy();
+  }
+
   render(ctx) {
     if (!this.active) return;
 
@@ -42,20 +51,32 @@ class FireballEntity extends Entity {
     // Additive blending for glow
     ctx.globalCompositeOperation = 'lighter';
 
-    // Outer glow (orange)
-    ctx.shadowBlur = 12;
+    // Accuracy-based visual scaling
+    const sizeScale = 0.7 + 0.3 * this.damageModifier;
+    const scaledSize = this.size * sizeScale;
+
+    // Brightness: sloppy = 0.8, perfect = 1.0
+    const brightness = 0.6 + 0.4 * this.damageModifier;
+    ctx.globalAlpha = brightness;
+
+    // Shadow glow: sloppy = 9, perfect = 12
+    ctx.shadowBlur = 6 + 6 * this.damageModifier;
     ctx.shadowColor = this.color;
 
     // Draw outer circle (orange)
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, scaledSize, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
 
+    // Inner glow scales with accuracy
+    const innerGlowAlpha = 0.6 * this.damageModifier;
+    const innerGlowRadius = scaledSize * 0.5 * (0.8 + 0.2 * this.damageModifier);
+
     // Draw inner circle (bright yellow)
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 150, 0.6)';
+    ctx.arc(this.x, this.y, innerGlowRadius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 150, ${innerGlowAlpha})`;
     ctx.fill();
 
     ctx.restore();
@@ -72,6 +93,7 @@ class FireballEntity extends Entity {
     this.vy = vy;
     this.damageModifier = damageModifier;
     this.age = 0;
+    this.onExpire = null;
     this.active = true;
   }
 }

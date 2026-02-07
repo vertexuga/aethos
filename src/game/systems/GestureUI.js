@@ -1,3 +1,5 @@
+import { SPELL_CONFIG } from '../data/spellConfig.js';
+
 class GestureUI {
   constructor() {
     this.displayResult = null; // Current result being shown
@@ -35,12 +37,16 @@ class GestureUI {
     ctx.shadowBlur = 8;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
 
-    // Draw shape name (centered near top)
+    // Get spell display name from config, fallback to gesture name
+    const spellConfig = SPELL_CONFIG[this.displayResult.name];
+    const displayName = spellConfig ? spellConfig.name : this.displayResult.name;
+
+    // Draw spell name (centered near top)
     const nameX = canvasWidth / 2;
     const nameY = 80;
     ctx.font = "bold 28px 'Cinzel Decorative', serif";
     ctx.fillStyle = `rgba(244, 232, 193, ${fadeAlpha})`;
-    ctx.fillText(this.displayResult.name.toUpperCase(), nameX, nameY);
+    ctx.fillText(displayName.toUpperCase(), nameX, nameY);
 
     // Determine accuracy quality and color
     const score = this.displayResult.score;

@@ -2,6 +2,7 @@ import ProjectilePool from './ProjectilePool.js';
 import QuickShotEntity from '../entities/projectiles/QuickShotEntity.js';
 import MagicMissileEntity from '../entities/projectiles/MagicMissileEntity.js';
 import FireballEntity from '../entities/projectiles/FireballEntity.js';
+import FireballExplosion from '../entities/projectiles/FireballExplosion.js';
 import { SPELL_CONFIG } from '../data/spellConfig.js';
 
 class SpellCaster {
@@ -12,6 +13,7 @@ class SpellCaster {
     this.quickShotPool = new ProjectilePool(QuickShotEntity, 30);
     this.magicMissilePool = new ProjectilePool(MagicMissileEntity, 30);
     this.fireballPool = new ProjectilePool(FireballEntity, 20);
+    this.explosionPool = new ProjectilePool(FireballExplosion, 15);
 
     // Canvas dimensions for keyboard fallback default spawning
     this.canvasWidth = 0;
@@ -82,6 +84,18 @@ class SpellCaster {
           vy,
           damageModifier
         });
+        // Set explosion callback for fireball
+        if (projectile) {
+          projectile.onExpire = (x, y, damageModifier) => {
+            // Only spawn explosion if within canvas bounds
+            if (x >= 0 && x <= this.canvasWidth && y >= 0 && y <= this.canvasHeight) {
+              const explosion = this.explosionPool.spawn({ x, y, damageModifier });
+              if (explosion) {
+                this.entityManager.add(explosion);
+              }
+            }
+          };
+        }
         break;
       default:
         console.warn(`SpellCaster: Unknown spell type "${name}"`);
@@ -99,6 +113,7 @@ class SpellCaster {
     this.quickShotPool.update(dt);
     this.magicMissilePool.update(dt);
     this.fireballPool.update(dt);
+    this.explosionPool.update(dt);
   }
 }
 

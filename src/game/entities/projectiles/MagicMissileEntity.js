@@ -42,20 +42,48 @@ class MagicMissileEntity extends Entity {
     // Additive blending for glow
     ctx.globalCompositeOperation = 'lighter';
 
-    // Shadow glow
-    ctx.shadowBlur = 8;
+    // Accuracy-based visual scaling
+    // Brightness: sloppy = 0.8 alpha, perfect = 1.0
+    const brightness = 0.6 + 0.4 * this.damageModifier;
+    ctx.globalAlpha = brightness;
+
+    // Shadow glow: sloppy = 9, perfect = 12
+    ctx.shadowBlur = 6 + 6 * this.damageModifier;
     ctx.shadowColor = this.color;
 
     // Calculate rotation angle from velocity
     const angle = Math.atan2(this.vy, this.vx);
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
 
     // Translate and rotate canvas to projectile position
     ctx.translate(this.x, this.y);
     ctx.rotate(angle);
 
+    // Draw tail trail (2-3 smaller circles behind the projectile)
+    const trailCount = 3;
+    for (let i = 1; i <= trailCount; i++) {
+      const trailX = -i * 4; // Behind the projectile
+      const trailAlpha = (1 - i / (trailCount + 1)) * brightness * 0.5;
+      const trailSize = this.size * 0.4 * (1 - i / (trailCount + 1));
+
+      ctx.globalAlpha = trailAlpha;
+      ctx.beginPath();
+      ctx.arc(trailX, 0, trailSize, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+    }
+
+    // Reset alpha for main projectile
+    ctx.globalAlpha = brightness;
+
+    // Ellipse size scales with damageModifier
+    const sizeScale = 0.7 + 0.3 * this.damageModifier;
+    const radiusX = this.size * 1.5 * sizeScale;
+    const radiusY = this.size * 0.6 * sizeScale;
+
     // Draw elongated ellipse pointing in direction of travel
     ctx.beginPath();
-    ctx.ellipse(0, 0, this.size * 1.5, this.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, radiusX, radiusY, 0, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
 
