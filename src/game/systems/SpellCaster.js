@@ -28,19 +28,18 @@ class SpellCaster {
   castSpell(gestureResult) {
     const { name, damageModifier, trajectory, fromKeyboard } = gestureResult;
 
-    // Determine spawn position and direction
-    let origin, direction;
+    // Determine spawn position, direction, and waypoints
+    let origin, direction, waypoints;
 
     if (trajectory) {
-      // Use trajectory from drawn gesture
       origin = trajectory.origin;
       direction = trajectory.direction;
+      waypoints = trajectory.waypoints || null;
     } else if (fromKeyboard) {
-      // Keyboard cast without trajectory - spawn at screen center, aim right
       origin = { x: this.canvasWidth / 2, y: this.canvasHeight / 2 };
-      direction = { x: 1, y: 0 }; // Aim right
+      direction = { x: 1, y: 0 };
+      waypoints = null;
     } else {
-      // No trajectory and not from keyboard - can't cast
       return;
     }
 
@@ -51,43 +50,32 @@ class SpellCaster {
       return;
     }
 
-    // Calculate velocity from direction and spell speed
+    // Calculate velocity from direction and spell speed (used as fallback when no waypoints)
     const vx = direction.x * config.speed;
     const vy = direction.y * config.speed;
+
+    const spawnParams = {
+      x: origin.x,
+      y: origin.y,
+      vx,
+      vy,
+      damageModifier,
+      waypoints
+    };
 
     // Spawn projectile from appropriate pool
     let projectile;
     switch (name) {
       case 'circle':
-        projectile = this.quickShotPool.spawn({
-          x: origin.x,
-          y: origin.y,
-          vx,
-          vy,
-          damageModifier
-        });
+        projectile = this.quickShotPool.spawn(spawnParams);
         break;
       case 'triangle':
-        projectile = this.magicMissilePool.spawn({
-          x: origin.x,
-          y: origin.y,
-          vx,
-          vy,
-          damageModifier
-        });
+        projectile = this.magicMissilePool.spawn(spawnParams);
         break;
       case 'zigzag':
-        projectile = this.fireballPool.spawn({
-          x: origin.x,
-          y: origin.y,
-          vx,
-          vy,
-          damageModifier
-        });
-        // Set explosion callback for fireball
+        projectile = this.fireballPool.spawn(spawnParams);
         if (projectile) {
           projectile.onExpire = (x, y, damageModifier) => {
-            // Only spawn explosion if within canvas bounds
             if (x >= 0 && x <= this.canvasWidth && y >= 0 && y <= this.canvasHeight) {
               const explosion = this.explosionPool.spawn({ x, y, damageModifier });
               if (explosion) {

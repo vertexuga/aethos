@@ -23,7 +23,10 @@ class MagicMissileEntity extends Entity {
   }
 
   update(dt) {
-    super.update(dt);
+    // Follow arc waypoints if available, otherwise fly straight
+    if (!this.followWaypoints(dt)) {
+      super.update(dt);
+    }
 
     // Increment age in milliseconds
     this.age += dt * 1000;
@@ -94,12 +97,16 @@ class MagicMissileEntity extends Entity {
     return this.baseDamage * this.damageModifier;
   }
 
-  reset({ x, y, vx, vy, damageModifier }) {
+  reset({ x, y, vx, vy, damageModifier, waypoints }) {
     this.x = x;
     this.y = y;
     this.vx = vx;
     this.vy = vy;
     this.damageModifier = damageModifier;
+    this.waypoints = waypoints || null;
+    this.waypointIdx = 0;
+    this.waypointProgress = 0;
+    this.waypointsDone = false;
     this.age = 0;
     this.active = true;
   }

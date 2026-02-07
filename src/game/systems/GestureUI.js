@@ -85,6 +85,12 @@ class GestureUI {
     const damageText = `${(damageModifier * 100).toFixed(0)}% damage`;
     ctx.fillText(damageText, damageX, damageY);
 
+    // Debug: show raw recognized gesture name
+    const debugY = 175;
+    ctx.font = '14px monospace';
+    ctx.fillStyle = `rgba(150, 150, 150, ${fadeAlpha * 0.6})`;
+    ctx.fillText(`gesture: ${this.displayResult.name}`, canvasWidth / 2, debugY);
+
     ctx.restore();
   }
 }
