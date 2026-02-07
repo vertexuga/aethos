@@ -19,12 +19,12 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 
 ### Gesture Recognition
 
-- [ ] **GEST-01**: $1 Recognizer integration for shape detection (circle, triangle, swipe, zigzag, spiral, circle-dot, horizontal swipe hold, star+circles) (P0)
-- [ ] **GEST-02**: Visual drawing trail with glow effect during gesture input (P0)
-- [ ] **GEST-03**: Shape recognition feedback -- recognized shape name displayed, trail color change on match (P0)
-- [ ] **GEST-04**: Accuracy scoring from gesture quality (0.5x to 1.0x damage modifier) (P1)
-- [ ] **GEST-05**: Generous gesture tolerance (60-70% match threshold) for reliable recognition across input devices (P0)
-- [ ] **GEST-06**: Trajectory extraction from continued drawing after shape recognition (P1)
+- [x] **GEST-01**: $1 Recognizer integration for shape detection (circle, triangle, swipe, zigzag, spiral, circle-dot, horizontal swipe hold, star+circles) (P0)
+- [x] **GEST-02**: Visual drawing trail with glow effect during gesture input (P0)
+- [x] **GEST-03**: Shape recognition feedback -- recognized shape name displayed, trail color change on match (P0)
+- [x] **GEST-04**: Accuracy scoring from gesture quality (0.5x to 1.0x damage modifier) (P1)
+- [x] **GEST-05**: Generous gesture tolerance (60-70% match threshold) for reliable recognition across input devices (P0)
+- [x] **GEST-06**: Trajectory extraction from continued drawing after shape recognition (P1)
 
 ### Spell System
 
@@ -95,7 +95,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **VFXP-04**: Enemy death particles and fade animation (P1)
 - [ ] **VFXP-05**: Screen shake on big spells (3px normal, 5px ultimate) (P1)
 - [ ] **VFXP-06**: Object-pooled particle system (200-300 max desktop) with auto-reduce on FPS drop (P0)
-- [ ] **VFXP-07**: Gesture trail with glow/gradient effect during drawing (P0)
+- [x] **VFXP-07**: Gesture trail with glow/gradient effect during drawing (P0)
 - [ ] **VFXP-08**: Spell color coding -- blue/cyan (free), purple/magenta (utility), gold/orange/red (ultimate) (P1)
 
 ### Accessibility
@@ -103,7 +103,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **ACCS-01**: Colorblind mode toggle (alternative color palette for spell tiers) (P3)
 - [ ] **ACCS-02**: Adjustable UI scale (P3)
 - [ ] **ACCS-03**: Practice/sandbox mode for gesture learning (P3)
-- [ ] **ACCS-04**: Keyboard shortcuts as emergency fallback for gesture failures (P1)
+- [x] **ACCS-04**: Keyboard shortcuts as emergency fallback for gesture failures (P1)
 
 ## v2 Requirements
 
@@ -156,12 +156,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Complete |
-| GEST-01 | Phase 2 | Pending |
-| GEST-02 | Phase 2 | Pending |
-| GEST-03 | Phase 2 | Pending |
-| GEST-04 | Phase 2 | Pending |
-| GEST-05 | Phase 2 | Pending |
-| GEST-06 | Phase 2 | Pending |
+| GEST-01 | Phase 2 | Complete |
+| GEST-02 | Phase 2 | Complete |
+| GEST-03 | Phase 2 | Complete |
+| GEST-04 | Phase 2 | Complete |
+| GEST-05 | Phase 2 | Complete |
+| GEST-06 | Phase 2 | Complete |
 | SPEL-01 | Phase 3 | Pending |
 | SPEL-02 | Phase 3 | Pending |
 | SPEL-03 | Phase 3 | Pending |
@@ -214,12 +214,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VFXP-04 | Phase 7 | Pending |
 | VFXP-05 | Phase 7 | Pending |
 | VFXP-06 | Phase 7 | Pending |
-| VFXP-07 | Phase 2 | Pending |
+| VFXP-07 | Phase 2 | Complete |
 | VFXP-08 | Phase 3 | Pending |
 | ACCS-01 | Phase 6 | Pending |
 | ACCS-02 | Phase 6 | Pending |
 | ACCS-03 | Phase 6 | Pending |
-| ACCS-04 | Phase 2 | Pending |
+| ACCS-04 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 71 total
