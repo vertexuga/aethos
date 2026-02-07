@@ -1,5 +1,9 @@
 import GameLoop from './GameLoop.js';
 import { useGameStore } from '../../stores/gameStore.js';
+import EntityManager from '../entities/EntityManager.js';
+import Entity from '../entities/Entity.js';
+import InputSystem from '../systems/InputSystem.js';
+import RenderPipeline from '../systems/RenderPipeline.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -10,8 +14,10 @@ class GameEngine {
     this.gameLoop = null;
     this.systems = [];
 
-    // Test animation state
-    this.testTime = 0;
+    // Core systems
+    this.entityManager = null;
+    this.inputSystem = null;
+    this.renderPipeline = null;
 
     // Bind methods
     this.update = this.update.bind(this);
@@ -22,6 +28,29 @@ class GameEngine {
   init() {
     // Set canvas size
     this.resize();
+
+    // Create core systems
+    this.entityManager = new EntityManager();
+    this.inputSystem = new InputSystem(this.canvas);
+    this.renderPipeline = new RenderPipeline(this.ctx, this.width, this.height);
+
+    // Initialize input system
+    this.inputSystem.init();
+
+    // Spawn 5 test entities with random properties
+    const colors = ['#4a8f8f', '#f4e8c1', '#7eb8da'];
+    for (let i = 0; i < 5; i++) {
+      const entity = new Entity({
+        x: Math.random() * this.width,
+        y: Math.random() * this.height,
+        vx: (Math.random() - 0.5) * 100, // -50 to 50 pixels/second
+        vy: (Math.random() - 0.5) * 100,
+        size: 8 + Math.random() * 12, // 8 to 20
+        color: colors[i % colors.length],
+        type: 'test'
+      });
+      this.entityManager.add(entity);
+    }
 
     // Create game loop
     this.gameLoop = new GameLoop(this.update, this.render);
@@ -34,8 +63,29 @@ class GameEngine {
   }
 
   update(dt) {
-    // Update test animation time
-    this.testTime += dt;
+    // Update input system
+    this.inputSystem.update(dt);
+
+    // Update entity manager
+    this.entityManager.update(dt);
+
+    // Apply boundary wrapping for entities
+    const entities = this.entityManager.getAll();
+    for (const entity of entities) {
+      // Wrap horizontally
+      if (entity.x < -entity.size) {
+        entity.x = this.width + entity.size;
+      } else if (entity.x > this.width + entity.size) {
+        entity.x = -entity.size;
+      }
+
+      // Wrap vertically
+      if (entity.y < -entity.size) {
+        entity.y = this.height + entity.size;
+      } else if (entity.y > this.height + entity.size) {
+        entity.y = -entity.size;
+      }
+    }
 
     // Update all systems
     this.systems.forEach(system => {
@@ -54,15 +104,8 @@ class GameEngine {
     this.ctx.fillStyle = '#0a0a12';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Render test visual: teal circle moving in sine wave
-    const x = (Math.sin(this.testTime) * 0.5 + 0.5) * this.width;
-    const y = this.height / 2;
-    const radius = 15;
-
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, radius, 0, Math.PI * 2);
-    this.ctx.fillStyle = '#4a8f8f';
-    this.ctx.fill();
+    // Render pipeline (entities, then trail)
+    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation);
 
     // Render all systems
     this.systems.forEach(system => {
@@ -89,6 +132,11 @@ class GameEngine {
   }
 
   destroy() {
+    // Clean up input system
+    if (this.inputSystem) {
+      this.inputSystem.destroy();
+    }
+
     // Stop game loop
     if (this.gameLoop) {
       this.gameLoop.stop();
@@ -102,6 +150,9 @@ class GameEngine {
     this.ctx = null;
     this.gameLoop = null;
     this.systems = [];
+    this.entityManager = null;
+    this.inputSystem = null;
+    this.renderPipeline = null;
   }
 }
 

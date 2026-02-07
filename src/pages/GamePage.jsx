@@ -9,6 +9,7 @@ const GamePage = () => {
   const navigate = useNavigate();
   const fps = useGameStore(state => state.fps);
   const setGameState = useGameStore(state => state.setGameState);
+  const [entityCount, setEntityCount] = React.useState(0);
 
   useEffect(() => {
     // Create and initialize game engine
@@ -19,8 +20,16 @@ const GamePage = () => {
     // Update game state
     setGameState('playing');
 
+    // Update entity count periodically
+    const intervalId = setInterval(() => {
+      if (engineRef.current && engineRef.current.entityManager) {
+        setEntityCount(engineRef.current.entityManager.count);
+      }
+    }, 100);
+
     // Cleanup function
     return () => {
+      clearInterval(intervalId);
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
@@ -48,7 +57,8 @@ const GamePage = () => {
         style={{
           display: 'block',
           width: '100%',
-          height: '100%'
+          height: '100%',
+          touchAction: 'none'
         }}
       />
 
@@ -83,7 +93,7 @@ const GamePage = () => {
         Back to Menu
       </button>
 
-      {/* FPS display */}
+      {/* FPS and Entity Count display */}
       <div
         className="font-cormorant"
         style={{
@@ -100,7 +110,7 @@ const GamePage = () => {
           zIndex: 1000
         }}
       >
-        FPS: {fps}
+        FPS: {fps} | Entities: {entityCount}
       </div>
     </div>
   );
