@@ -1,7 +1,7 @@
-# Requirements: AETHOS — Fragments of the Void
+# Requirements: AETHOS -- Fragments of the Void
 
 **Defined:** 2026-02-06
-**Core Value:** Drawing shapes to cast spells must feel magical — responsive gesture recognition, visual feedback, and spell effects ARE the experience.
+**Core Value:** Drawing shapes to cast spells must feel magical -- responsive gesture recognition, visual feedback, and spell effects ARE the experience.
 
 ## v1 Requirements
 
@@ -21,14 +21,14 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 
 - [ ] **GEST-01**: $1 Recognizer integration for shape detection (circle, triangle, swipe, zigzag, spiral, circle-dot, horizontal swipe hold, star+circles) (P0)
 - [ ] **GEST-02**: Visual drawing trail with glow effect during gesture input (P0)
-- [ ] **GEST-03**: Shape recognition feedback — recognized shape name displayed, trail color change on match (P0)
+- [ ] **GEST-03**: Shape recognition feedback -- recognized shape name displayed, trail color change on match (P0)
 - [ ] **GEST-04**: Accuracy scoring from gesture quality (0.5x to 1.0x damage modifier) (P1)
 - [ ] **GEST-05**: Generous gesture tolerance (60-70% match threshold) for reliable recognition across input devices (P0)
 - [ ] **GEST-06**: Trajectory extraction from continued drawing after shape recognition (P1)
 
 ### Spell System
 
-- [ ] **SPEL-01**: Three-tier spell system — Free (0 mana), Utility (35 mana), Ultimate (100 mana) (P1)
+- [ ] **SPEL-01**: Three-tier spell system -- Free (0 mana), Utility (35 mana), Ultimate (100 mana) (P1)
 - [ ] **SPEL-02**: Quick Shot spell (circle gesture, 0 mana, fast projectile) (P0)
 - [ ] **SPEL-03**: Magic Missile spell (triangle gesture, 0 mana, homing projectile) (P0)
 - [ ] **SPEL-04**: Fireball spell (zigzag gesture, 0 mana, AoE explosion) (P1)
@@ -38,19 +38,19 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **SPEL-08**: Dash spell (horizontal swipe hold, 35 mana, dodge movement) (P2)
 - [ ] **SPEL-09**: Meteor Storm ultimate (star+circles gesture, 100 mana, massive AoE) (P1)
 - [ ] **SPEL-10**: Projectile entities spawned on cast with trajectory from continued drawing (P1)
-- [ ] **SPEL-11**: Spell loadout selection — pick 2 utility spells before each level (P2)
-- [ ] **SPEL-12**: Accuracy scaling — sloppy draws deal reduced damage based on gesture quality (P1)
+- [ ] **SPEL-11**: Spell loadout selection -- pick 2 utility spells before each level (P2)
+- [ ] **SPEL-12**: Accuracy scaling -- sloppy draws deal reduced damage based on gesture quality (P1)
 
 ### Combat & Enemies
 
-- [ ] **COMB-01**: One enemy type — Slime with chase AI toward player, health bar, death animation (P0)
+- [ ] **COMB-01**: One enemy type -- Slime with chase AI toward player, health bar, death animation (P0)
 - [ ] **COMB-02**: Collision detection system (circle/AABB) for projectiles hitting enemies (P0)
-- [ ] **COMB-03**: Damage application — enemy health reduction with visual hit feedback (white flash) (P0)
+- [ ] **COMB-03**: Damage application -- enemy health reduction with visual hit feedback (white flash) (P0)
 - [ ] **COMB-04**: Player HP system with contact damage from enemies (P0)
-- [ ] **COMB-05**: Turret enemy type — stationary, fires projectiles at player (P2)
-- [ ] **COMB-06**: Fast Zombie enemy type — high speed, low health (P2)
-- [ ] **COMB-07**: Boss enemy type — high HP, attack patterns, telegraphed attacks (P2)
-- [ ] **COMB-08**: Environmental hazards — lava zones, poison clouds, falling debris (P3)
+- [ ] **COMB-05**: Turret enemy type -- stationary, fires projectiles at player (P2)
+- [ ] **COMB-06**: Fast Zombie enemy type -- high speed, low health (P2)
+- [ ] **COMB-07**: Boss enemy type -- high HP, attack patterns, telegraphed attacks (P2)
+- [ ] **COMB-08**: Environmental hazards -- lava zones, poison clouds, falling debris (P3)
 - [ ] **COMB-09**: Enemy visual language with color coding and attack warnings (P1)
 - [ ] **COMB-10**: Wave spawning system with configurable enemy composition (P1)
 
@@ -58,26 +58,26 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 
 - [ ] **MANA-01**: Mana resource pool (0-100) with visual thresholds at 35 (utility) and 100 (ultimate) (P1)
 - [ ] **MANA-02**: Passive mana regeneration (5/sec base rate) (P1)
-- [ ] **MANA-03**: Kill bonus mana — enemies drop mana on death (P1)
+- [ ] **MANA-03**: Kill bonus mana -- enemies drop mana on death (P1)
 - [ ] **MANA-04**: Visual mana bar with color-coded tiers (blue=free, purple glow=utility ready, gold pulse=ultimate ready) (P1)
 - [ ] **MANA-05**: HUD indicators when thresholds reached ("Utility Ready", "Ultimate Ready") (P1)
 
 ### Levels & Progression
 
-- [ ] **LEVL-01**: Level 1 tutorial — draw circle to cast Quick Shot, kill 1 slime (P0)
-- [ ] **LEVL-02**: Level 2 tutorial — draw triangle, aim trajectory, kill 2 slimes (P0)
-- [ ] **LEVL-03**: Level 3 tutorial — use multiple spells, kill 3 slimes (P0)
+- [ ] **LEVL-01**: Level 1 tutorial -- draw circle to cast Quick Shot, kill 1 slime (P0)
+- [ ] **LEVL-02**: Level 2 tutorial -- draw triangle, aim trajectory, kill 2 slimes (P0)
+- [ ] **LEVL-03**: Level 3 tutorial -- use multiple spells, kill 3 slimes (P0)
 - [ ] **LEVL-04**: 20 structured levels with gradual mechanic introduction (P2)
 - [ ] **LEVL-05**: Endless mode unlocked after Level 20 (P3)
 - [ ] **LEVL-06**: Win/loss conditions with restart functionality (P0)
-- [ ] **LEVL-07**: Upgrade system between levels — mana capacity, spell efficiency, spell power, ultimate charge (P2)
+- [ ] **LEVL-07**: Upgrade system between levels -- mana capacity, spell efficiency, spell power, ultimate charge (P2)
 - [ ] **LEVL-08**: Difficulty scaling (Easy/Normal/Hard affecting mana costs and regen rates) (P3)
 - [ ] **LEVL-09**: On-screen tutorial warnings for utility triggers (Levels 1-15, then fade) (P2)
 - [ ] **LEVL-10**: Post-level stats screen with rank, accuracy, spell usage breakdown (P2)
 
 ### UI & HUD
 
-- [ ] **UIHD-01**: Main menu screen (existing design — Begin Journey, Archives, Sigils, Settings, Depart) (P0)
+- [ ] **UIHD-01**: Main menu screen (existing design -- Begin Journey, Archives, Sigils, Settings, Depart) (P0)
 - [ ] **UIHD-02**: Game HUD with HP bar overlay (P0)
 - [ ] **UIHD-03**: Game HUD with mana bar and threshold indicators (P1)
 - [ ] **UIHD-04**: Spell bar showing available/equipped spells (P1)
@@ -96,7 +96,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **VFXP-05**: Screen shake on big spells (3px normal, 5px ultimate) (P1)
 - [ ] **VFXP-06**: Object-pooled particle system (200-300 max desktop) with auto-reduce on FPS drop (P0)
 - [ ] **VFXP-07**: Gesture trail with glow/gradient effect during drawing (P0)
-- [ ] **VFXP-08**: Spell color coding — blue/cyan (free), purple/magenta (utility), gold/orange/red (ultimate) (P1)
+- [ ] **VFXP-08**: Spell color coding -- blue/cyan (free), purple/magenta (utility), gold/orange/red (ultimate) (P1)
 
 ### Accessibility
 
@@ -222,10 +222,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACCS-04 | Phase 2 | Pending |
 
 **Coverage:**
-- v1 requirements: 65 total
-- Mapped to phases: 65
+- v1 requirements: 71 total
+- Mapped to phases: 71
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-06*
-*Last updated: 2026-02-06 after research synthesis*
+*Last updated: 2026-02-06 after roadmap creation*
