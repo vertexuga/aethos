@@ -73,11 +73,11 @@ Plans:
   3. Drawing a zigzag spawns a Fireball projectile with an AoE explosion visual at impact point
   4. Sloppy gesture draws produce visibly weaker spells (reduced size/brightness) with accuracy feedback text ("Perfect!", "Good", "Sloppy")
   5. Spells are color-coded by tier (blue/cyan for free spells) and visually distinct from each other
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Spell system and projectile entities
-- [ ] 03-02: Trajectory aiming and accuracy scaling
+- [ ] 03-01-PLAN.md -- Spell config, projectile entities (QuickShot/MagicMissile/Fireball), object pooling, SpellCaster system, GameEngine wiring
+- [ ] 03-02-PLAN.md -- Accuracy-based visual scaling, Fireball AoE explosion, GestureUI spell names, visual verification checkpoint
 
 ### Phase 4: Combat System
 **Goal**: Spells hit enemies, enemies take damage and die, enemies fight back with contact damage, and the core gameplay loop (draw, cast, kill, survive) is playable end-to-end
