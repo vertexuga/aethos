@@ -219,16 +219,16 @@ const GESTURE_TEMPLATES = [
     name: 'line',
     variations: [
       generateLine(50, 100, 150, 100), // Horizontal
-      addJitter(generateLine(60, 90, 140, 110), 2), // Slightly diagonal
-      generateLine(70, 60, 130, 140) // Diagonal
+      addJitter(generateLine(50, 100, 150, 100), 2), // Horizontal with jitter
+      generateLine(50, 95, 150, 105) // Nearly horizontal with slight slope
     ]
   },
   {
     name: 'zigzag',
     variations: [
-      generateZigzag(50, 80, 100, 3, 30),
-      addJitter(generateZigzag(50, 85, 100, 3, 28), 3),
-      generateZigzag(55, 75, 95, 3, 32)
+      generateZigzag(50, 60, 120, 4, 60), // 4 peaks, 60px amplitude — very distinct from line
+      addJitter(generateZigzag(50, 60, 120, 4, 55), 3),
+      generateZigzag(50, 65, 115, 3, 65) // 3 peaks, 65px amplitude
     ]
   },
   {

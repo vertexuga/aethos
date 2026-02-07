@@ -45,7 +45,7 @@ const HomePage = () => {
 
       <ParticleCanvas />
 
-      <div className="relative z-30 w-full h-full flex flex-col justify-between p-12 lg:p-24">
+      <div className="relative z-30 w-full h-full flex flex-col justify-between px-6 py-8 sm:p-12 lg:p-24">
         <div className="flex justify-between items-start opacity-60">
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full border border-[#4a8f8f] flex items-center justify-center opacity-70">

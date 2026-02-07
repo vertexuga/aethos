@@ -41,8 +41,16 @@ class GestureRecognizerSystem {
     try {
       // Access the underlying dollarRecognizer for full result (name + score)
       // The wrapper's recognize() only returns the name, but we need the score
+      // IMPORTANT: The $1 algorithm expects Point objects with uppercase .X and .Y
+      // The wrapper's add() converts via pointMaker, but direct Recognize() needs manual conversion
       const result = this.recognizer.dollarRecognizer.Recognize(
-        stroke.map(p => ({ x: p.x, y: p.y })),
+        stroke.map(p => {
+          const pt = { X: p.x, Y: p.y };
+          // Also include lowercase for any code that reads .x/.y
+          pt.x = p.x;
+          pt.y = p.y;
+          return pt;
+        }),
         true // useProtractor = true for 10x speed boost
       );
 

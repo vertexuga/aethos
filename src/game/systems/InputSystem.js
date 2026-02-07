@@ -51,6 +51,12 @@ class InputSystem {
     const point = { x, y, timestamp: Date.now(), alpha: 1.0 };
     this.currentPoints.push(point);
     this.trailPoints.push(point);
+
+    // Cap trail points to prevent unbounded growth and FPS drops during long draws
+    const MAX_TRAIL_POINTS = 200;
+    if (this.trailPoints.length > MAX_TRAIL_POINTS) {
+      this.trailPoints = this.trailPoints.slice(-MAX_TRAIL_POINTS);
+    }
   }
 
   stopDrawing() {
@@ -140,20 +146,28 @@ class InputSystem {
     ctx.shadowBlur = shadowBlur;
     ctx.shadowColor = shadowColor;
 
-    // Draw each segment with its own alpha
+    // Batch segments by similar alpha to reduce draw calls
+    let batchAlpha = -1;
+    ctx.beginPath();
     for (let i = 0; i < this.trailPoints.length - 1; i++) {
       const p1 = this.trailPoints[i];
       const p2 = this.trailPoints[i + 1];
-
-      // Use the alpha from the first point
       const alpha = Math.max(0, Math.min(1, p1.alpha));
-      ctx.strokeStyle = trailColor.replace('{alpha}', alpha);
+      const quantizedAlpha = Math.round(alpha * 10) / 10; // Group by 0.1 increments
 
-      ctx.beginPath();
+      if (quantizedAlpha !== batchAlpha) {
+        // Flush previous batch
+        if (batchAlpha >= 0) ctx.stroke();
+        batchAlpha = quantizedAlpha;
+        ctx.strokeStyle = trailColor.replace('{alpha}', alpha);
+        ctx.beginPath();
+      }
+
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
     }
+    // Flush final batch
+    if (batchAlpha >= 0) ctx.stroke();
 
     ctx.restore();
   }
