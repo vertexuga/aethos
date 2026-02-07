@@ -35,11 +35,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Navigating away from the game screen and back does not leak animation frames or crash the browser
   4. The game screen matches the existing dark mystical aesthetic (teal/gold/navy palette, Cinzel Decorative font)
   5. Game objects (test circles/entities) move smoothly at the same speed regardless of display refresh rate (60Hz vs 120Hz)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Project scaffold and Canvas game loop
-- [ ] 01-02: Input system and entity management
+- [ ] 01-01-PLAN.md -- Vite project scaffold, React Router, existing menu, Canvas game loop with fixed timestep, Zustand store
+- [ ] 01-02-PLAN.md -- Mouse/touch input system with drawing trail, entity management with test entities
 
 ### Phase 2: Gesture Recognition
 **Goal**: Player draws shapes on Canvas and the game reliably recognizes them, providing immediate visual feedback on what shape was detected and how accurately it was drawn
@@ -178,7 +178,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|---------------|--------|-----------|
-| 1. Foundation | 0/2 | Not started | - |
+| 1. Foundation | 0/2 | Planned | - |
 | 2. Gesture Recognition | 0/2 | Not started | - |
 | 3. Spell Casting | 0/2 | Not started | - |
 | 4. Combat System | 0/2 | Not started | - |
