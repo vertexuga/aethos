@@ -5,6 +5,7 @@ import Entity from '../entities/Entity.js';
 import InputSystem from '../systems/InputSystem.js';
 import RenderPipeline from '../systems/RenderPipeline.js';
 import GestureRecognizer from '../systems/GestureRecognizer.js';
+import GestureUI from '../systems/GestureUI.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -20,6 +21,7 @@ class GameEngine {
     this.inputSystem = null;
     this.renderPipeline = null;
     this.gestureRecognizer = null;
+    this.gestureUI = null;
 
     // Gesture state
     this.lastGestureResult = null;
@@ -40,6 +42,7 @@ class GameEngine {
     this.inputSystem = new InputSystem(this.canvas);
     this.renderPipeline = new RenderPipeline(this.ctx, this.width, this.height);
     this.gestureRecognizer = new GestureRecognizer();
+    this.gestureUI = new GestureUI();
 
     // Initialize input system
     this.inputSystem.init();
@@ -81,6 +84,10 @@ class GameEngine {
       this.lastGestureResult = result;
       useGameStore.getState().setLastGesture(result);
 
+      // Show visual feedback
+      this.gestureUI.showResult(result);
+      this.inputSystem.setRecognitionResult(result);
+
       // Debug logging
       console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`);
     } else {
@@ -93,6 +100,9 @@ class GameEngine {
   update(dt) {
     // Update input system
     this.inputSystem.update(dt);
+
+    // Update gesture UI
+    this.gestureUI.update(dt);
 
     // Update entity manager
     this.entityManager.update(dt);
@@ -132,8 +142,8 @@ class GameEngine {
     this.ctx.fillStyle = '#0a0a12';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Render pipeline (entities, then trail)
-    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation);
+    // Render pipeline (entities, then trail, then UI)
+    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation, this.gestureUI);
 
     // Render all systems
     this.systems.forEach(system => {
@@ -182,6 +192,7 @@ class GameEngine {
     this.inputSystem = null;
     this.renderPipeline = null;
     this.gestureRecognizer = null;
+    this.gestureUI = null;
     this.lastGestureResult = null;
   }
 }

@@ -5,6 +5,7 @@ class InputSystem {
     this.currentPoints = []; // {x, y, timestamp}
     this.trailPoints = []; // {x, y, alpha}
     this.onStopDrawing = null; // Callback for gesture recognition
+    this.recognitionResult = null; // Recognition result for trail color change
 
     // Bind event handlers
     this.handleMouseDown = this.handleMouseDown.bind(this);
@@ -39,6 +40,7 @@ class InputSystem {
   startDrawing(x, y) {
     this.isDrawing = true;
     this.currentPoints = [];
+    this.recognitionResult = null; // Reset recognition on new drawing
     const point = { x, y, timestamp: Date.now(), alpha: 1.0 };
     this.currentPoints.push(point);
     this.trailPoints.push(point);
@@ -107,17 +109,36 @@ class InputSystem {
     this.trailPoints = this.trailPoints.filter(p => p.alpha > 0);
   }
 
+  setRecognitionResult(result) {
+    this.recognitionResult = result;
+  }
+
   render(ctx) {
     if (this.trailPoints.length < 2) return;
 
     ctx.save();
 
-    // Set line style
-    ctx.lineWidth = 3;
+    // Set line style - enhanced width for better visibility
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = 'rgba(126, 184, 218, 0.6)';
+
+    // Color and glow based on recognition state
+    let trailColor, shadowColor, shadowBlur;
+    if (this.recognitionResult) {
+      // Gesture recognized - green trail with bright glow
+      trailColor = 'rgba(76, 175, 80, {alpha})';
+      shadowColor = 'rgba(129, 199, 132, 0.8)';
+      shadowBlur = 20;
+    } else {
+      // Default - teal trail with light blue glow
+      trailColor = 'rgba(74, 143, 143, {alpha})';
+      shadowColor = 'rgba(126, 184, 218, 0.6)';
+      shadowBlur = 15;
+    }
+
+    ctx.shadowBlur = shadowBlur;
+    ctx.shadowColor = shadowColor;
 
     // Draw each segment with its own alpha
     for (let i = 0; i < this.trailPoints.length - 1; i++) {
@@ -126,7 +147,7 @@ class InputSystem {
 
       // Use the alpha from the first point
       const alpha = Math.max(0, Math.min(1, p1.alpha));
-      ctx.strokeStyle = `rgba(74, 143, 143, ${alpha})`;
+      ctx.strokeStyle = trailColor.replace('{alpha}', alpha);
 
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);

@@ -5,7 +5,7 @@ class RenderPipeline {
     this.height = height;
   }
 
-  render(ctx, entityManager, inputSystem, interpolation) {
+  render(ctx, entityManager, inputSystem, interpolation, gestureUI) {
     // Layer 1: Background (already cleared by engine with #0a0a12)
 
     // Layer 2: Game entities
@@ -14,7 +14,10 @@ class RenderPipeline {
     // Layer 3: Drawing trail (renders above entities)
     inputSystem.render(ctx);
 
-    // Layer 4: UI overlays (future: HUD, score, etc.)
+    // Layer 4: UI overlays
+    if (gestureUI) {
+      gestureUI.render(ctx, ctx.canvas.width, ctx.canvas.height);
+    }
   }
 }
 
