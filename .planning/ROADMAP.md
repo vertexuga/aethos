@@ -12,7 +12,7 @@ AETHOS is built in 7 phases following its linear dependency chain: Canvas infras
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [→] **Phase 1: Foundation** - Canvas rendering, game loop, input capture, Zustand bridge
+- [x] **Phase 1: Foundation** - Canvas rendering, game loop, input capture, Zustand bridge
 - [ ] **Phase 2: Gesture Recognition** - $1 Recognizer integration, shape detection, drawing feedback
 - [ ] **Phase 3: Spell Casting** - Free spells, projectile trajectories, accuracy scaling
 - [ ] **Phase 4: Combat System** - Enemies, collision detection, damage, wave spawning
@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Vite project scaffold, React Router, existing menu, Canvas game loop with fixed timestep, Zustand store
-- [ ] 01-02-PLAN.md -- Mouse/touch input system with drawing trail, entity management with test entities
+- [x] 01-02-PLAN.md -- Mouse/touch input system with drawing trail, entity management with test entities
 
 ### Phase 2: Gesture Recognition
 **Goal**: Player draws shapes on Canvas and the game reliably recognizes them, providing immediate visual feedback on what shape was detected and how accurately it was drawn
@@ -178,7 +178,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|---------------|--------|-----------|
-| 1. Foundation | 1/2 | In progress | - |
+| 1. Foundation | 2/2 | Complete | 2026-02-06 |
 | 2. Gesture Recognition | 0/2 | Not started | - |
 | 3. Spell Casting | 0/2 | Not started | - |
 | 4. Combat System | 0/2 | Not started | - |

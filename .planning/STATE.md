@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 1 of 7 (Foundation)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 01-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 01-02-PLAN.md
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 14%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 3.9 minutes
-- Total execution time: 0.06 hours
+- Total plans completed: 2
+- Average duration: 3.5 minutes
+- Total execution time: 0.12 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1 | 3.9m | 3.9m |
+| 01-foundation | 2 | 7.0m | 3.5m |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3.9m)
-- Trend: Just started
+- Last 5 plans: 01-01 (3.9m), 01-02 (3.1m)
+- Trend: Steady
 
 *Updated after each plan completion*
 
@@ -48,6 +48,8 @@ Recent decisions affecting current work:
 - [01-01/TECH-001]: Tailwind CSS v4 with @import syntax instead of v3 @tailwind directives
 - [01-01/ARCH-001]: Fixed timestep at 16.67ms with delta time cap at 250ms to prevent spiral of death
 - [01-01/ARCH-002]: Separate ParticleCanvas (menu) from GameEngine canvas (gameplay)
+- [01-02]: Entity velocity in px/sec with dt multiplication for frame-rate independence
+- [01-02]: RenderPipeline layer order: entities -> trail -> UI
 
 ### Pending Todos
 
@@ -61,5 +63,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 01-01-PLAN.md (Foundation Scaffold)
+Stopped at: Phase 1 complete, ready for Phase 2
 Resume file: None
