@@ -83,7 +83,7 @@ class GestureRecognizerSystem {
   calculateDamageModifier(score) {
     // Linear mapping from recognition score to damage multiplier
     // 60% recognition -> 0.5x damage (minimum)
-    // 100% recognition -> 1.0x damage (maximum)
+    // 100% recognition -> 1.2x damage (maximum, rewards perfect draws)
 
     const minThreshold = 0.60;
     const maxScore = 1.00;
@@ -91,8 +91,8 @@ class GestureRecognizerSystem {
     // Clamp score to valid range
     const clampedScore = Math.max(minThreshold, Math.min(maxScore, score));
 
-    // Linear interpolation: 0.5 + (score - 0.6) / (1.0 - 0.6) * 0.5
-    const modifier = 0.5 + ((clampedScore - minThreshold) / (maxScore - minThreshold)) * 0.5;
+    // Linear interpolation: 0.5 + (score - 0.6) / (1.0 - 0.6) * 0.7
+    const modifier = 0.5 + ((clampedScore - minThreshold) / (maxScore - minThreshold)) * 0.7;
 
     return modifier;
   }

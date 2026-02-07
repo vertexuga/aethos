@@ -62,8 +62,16 @@ class GameEngine {
     this.keyboardFallback.init();
     this.keyboardFallback.onSpellCast = this.handleKeyboardSpell;
 
-    // Wire gesture recognition callback
+    // Wire gesture recognition callbacks
     this.inputSystem.onStopDrawing = this.handleGestureComplete;
+
+    // Real-time recognition on shape closure (trail turns spell color while still drawing)
+    this.inputSystem.onShapeClosed = (shapePoints) => {
+      const result = this.gestureRecognizer.recognize(shapePoints);
+      if (result) {
+        this.inputSystem.setSpellRecognition(result.name);
+      }
+    };
 
     // Create game loop
     this.gameLoop = new GameLoop(this.update, this.render);
@@ -76,12 +84,13 @@ class GameEngine {
   }
 
   handleGestureComplete(points) {
-    // Recognize the gesture from drawn points
-    const result = this.gestureRecognizer.recognize(points);
+    // Split drawn points into shape (for recognition) and tail arc (for trajectory)
+    const { shapePoints, trajectory } = TrajectoryExtractor.splitAndExtract(points);
+
+    // Recognize the gesture from shape points only (tail excluded for closing shapes)
+    const result = this.gestureRecognizer.recognize(shapePoints);
 
     if (result) {
-      // Extract trajectory direction from the drawn gesture
-      const trajectory = TrajectoryExtractor.extractFromCenter(points);
       result.trajectory = trajectory;
 
       // Store result locally and in Zustand
@@ -90,13 +99,16 @@ class GameEngine {
 
       // Show visual feedback
       this.gestureUI.showResult(result);
-      this.inputSystem.setRecognitionResult(result);
+
+      // Color trail with spell color (for non-closing shapes that didn't get early recognition)
+      this.inputSystem.setSpellRecognition(result.name);
 
       // Cast the spell (same frame as recognition)
       this.spellCaster.castSpell(result);
 
       // Debug logging
-      console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`, trajectory ? `- Trajectory: ${(trajectory.angle * 180 / Math.PI).toFixed(0)}°` : '- No trajectory');
+      const arcInfo = trajectory?.hasArc ? `Arc: ${trajectory.waypoints.length} waypoints` : 'Straight';
+      console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`, trajectory ? `- ${arcInfo} ${(trajectory.angle * 180 / Math.PI).toFixed(0)}°` : '- No trajectory');
     } else {
       // No recognition or below threshold
       this.lastGestureResult = null;
