@@ -9,13 +9,13 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 
 ### Foundation
 
-- [ ] **FOUND-01**: Vite + React 19 project scaffold with Tailwind CSS 4 and React Router (P0)
-- [ ] **FOUND-02**: HTML5 Canvas rendering layer isolated from React via useRef bridge pattern (P0)
-- [ ] **FOUND-03**: Fixed timestep game loop (16.67ms updates) with delta time for frame-rate independent physics (P0)
-- [ ] **FOUND-04**: Input capture system for mouse/touch drawing with visible trail on Canvas (P0)
-- [ ] **FOUND-05**: Zustand state store bridging Canvas game engine and React UI layer (P0)
-- [ ] **FOUND-06**: requestAnimationFrame cleanup on component unmount (P0)
-- [ ] **FOUND-07**: Entity management system for game objects (enemies, projectiles, particles) (P0)
+- [x] **FOUND-01**: Vite + React 19 project scaffold with Tailwind CSS 4 and React Router (P0)
+- [x] **FOUND-02**: HTML5 Canvas rendering layer isolated from React via useRef bridge pattern (P0)
+- [x] **FOUND-03**: Fixed timestep game loop (16.67ms updates) with delta time for frame-rate independent physics (P0)
+- [x] **FOUND-04**: Input capture system for mouse/touch drawing with visible trail on Canvas (P0)
+- [x] **FOUND-05**: Zustand state store bridging Canvas game engine and React UI layer (P0)
+- [x] **FOUND-06**: requestAnimationFrame cleanup on component unmount (P0)
+- [x] **FOUND-07**: Entity management system for game objects (enemies, projectiles, particles) (P0)
 
 ### Gesture Recognition
 
@@ -77,7 +77,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 
 ### UI & HUD
 
-- [ ] **UIHD-01**: Main menu screen (existing design -- Begin Journey, Archives, Sigils, Settings, Depart) (P0)
+- [x] **UIHD-01**: Main menu screen (existing design -- Begin Journey, Archives, Sigils, Settings, Depart) (P0)
 - [ ] **UIHD-02**: Game HUD with HP bar overlay (P0)
 - [ ] **UIHD-03**: Game HUD with mana bar and threshold indicators (P1)
 - [ ] **UIHD-04**: Spell bar showing available/equipped spells (P1)
@@ -85,7 +85,7 @@ Requirements for hackathon demo. Each maps to roadmap phases. Organized by syste
 - [ ] **UIHD-06**: Archives screen (spell compendium/lore viewer) (P3)
 - [ ] **UIHD-07**: Sigils screen (gesture practice/reference) (P3)
 - [ ] **UIHD-08**: Settings screen (difficulty, accessibility options) (P3)
-- [ ] **UIHD-09**: Integration with existing dark mystical aesthetic (teal/gold/navy, Cinzel Decorative font) (P0)
+- [x] **UIHD-09**: Integration with existing dark mystical aesthetic (teal/gold/navy, Cinzel Decorative font) (P0)
 
 ### Visual Effects & Polish
 
@@ -149,13 +149,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
-| FOUND-07 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
+| FOUND-02 | Phase 1 | Complete |
+| FOUND-03 | Phase 1 | Complete |
+| FOUND-04 | Phase 1 | Complete |
+| FOUND-05 | Phase 1 | Complete |
+| FOUND-06 | Phase 1 | Complete |
+| FOUND-07 | Phase 1 | Complete |
 | GEST-01 | Phase 2 | Pending |
 | GEST-02 | Phase 2 | Pending |
 | GEST-03 | Phase 2 | Pending |
@@ -199,7 +199,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEVL-08 | Phase 6 | Pending |
 | LEVL-09 | Phase 6 | Pending |
 | LEVL-10 | Phase 6 | Pending |
-| UIHD-01 | Phase 1 | Pending |
+| UIHD-01 | Phase 1 | Complete |
 | UIHD-02 | Phase 4 | Pending |
 | UIHD-03 | Phase 5 | Pending |
 | UIHD-04 | Phase 5 | Pending |
@@ -207,7 +207,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UIHD-06 | Phase 6 | Pending |
 | UIHD-07 | Phase 6 | Pending |
 | UIHD-08 | Phase 6 | Pending |
-| UIHD-09 | Phase 1 | Pending |
+| UIHD-09 | Phase 1 | Complete |
 | VFXP-01 | Phase 7 | Pending |
 | VFXP-02 | Phase 7 | Pending |
 | VFXP-03 | Phase 7 | Pending |
