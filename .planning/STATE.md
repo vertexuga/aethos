@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 3 of 7 (Spell Casting)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-07 -- Completed 03-01-PLAN.md
+Last activity: 2026-02-07 -- Completed 03-02-PLAN.md
 
-Progress: [█████░░░░░] 36%
+Progress: [██████░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5.2 minutes
-- Total execution time: 0.43 hours
+- Total plans completed: 6
+- Average duration: 5.0 minutes
+- Total execution time: 0.50 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████░░░░░] 36%
 |-------|-------|-------|----------|
 | 01-foundation | 2 | 7.0m | 3.5m |
 | 02-gesture-recognition | 2 | 17.4m | 8.7m |
-| 03-spell-casting | 1 | 3.0m | 3.0m |
+| 03-spell-casting | 2 | 7.0m | 3.5m |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3.1m), 02-01 (3.4m), 02-02 (14.0m), 03-01 (3.0m)
+- Last 5 plans: 02-01 (3.4m), 02-02 (14.0m), 03-01 (3.0m), 03-02 (4.0m)
 - Trend: Fast execution when no checkpoints, longer with user interaction
 
 *Updated after each plan completion*
@@ -66,6 +66,11 @@ Recent decisions affecting current work:
 - [03-01/RENDER-001]: Additive blend rendering (globalCompositeOperation = 'lighter') for projectile glow effects
 - [03-01/GAME-003]: Projectiles destroy when leaving canvas bounds (unlike entities which wrap)
 - [03-01/GAME-004]: Keyboard spells spawn at screen center with rightward default trajectory
+- [03-02/VFX-001]: Accuracy scaling formula 0.7 + 0.3 * damageModifier for size (sloppy = 70%, perfect = 100%)
+- [03-02/VFX-002]: Brightness/alpha scaling 0.6 + 0.4 * damageModifier (sloppy = 0.8, perfect = 1.0)
+- [03-02/VFX-003]: Magic Missile 3-circle tail trail for visual distinctness from QuickShot
+- [03-02/RENDER-002]: FireballExplosion expanding ring (24-40px based on accuracy) with 0.4s lifetime
+- [03-02/UI-002]: GestureUI displays spell names from SPELL_CONFIG instead of gesture names
 
 ### Pending Todos
 
@@ -77,10 +82,12 @@ None yet.
 - [RESOLVED] Visual feedback UI implemented in 02-02 - trail color change and on-screen display working.
 - [RESOLVED] Phase 2 complete - gesture recognition with visual feedback and trajectory extraction ready for Phase 3 spell casting.
 - [RESOLVED] Phase 3 Plan 1 complete - spell projectiles spawning from gestures with object pooling and additive blend rendering.
+- [RESOLVED] Phase 3 Plan 2 complete - accuracy-based visual scaling and fireball explosions verified by user.
+- [NOTE] Significant additional work completed outside GSD between 03-01 and 03-02: trajectory arc system (waypoint following), real-time trail coloring, straight tail detection, rotated gesture templates, shape/tail visualization split.
 
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 03-01-PLAN.md - Spell casting infrastructure complete
+Stopped at: Completed 03-02-PLAN.md - Accuracy scaling and fireball explosions complete
 Resume file: None
-Next: Phase 3 Plan 2 (remaining spell casting plans) or Phase 4 (Combat Mechanics)
+Next: Phase 3 Plan 3 (final spell casting plan) or Phase 4 (Combat Mechanics)
