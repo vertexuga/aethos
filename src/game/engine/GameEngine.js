@@ -6,6 +6,8 @@ import InputSystem from '../systems/InputSystem.js';
 import RenderPipeline from '../systems/RenderPipeline.js';
 import GestureRecognizer from '../systems/GestureRecognizer.js';
 import GestureUI from '../systems/GestureUI.js';
+import TrajectoryExtractor from '../systems/TrajectoryExtractor.js';
+import KeyboardFallback from '../systems/KeyboardFallback.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -22,6 +24,7 @@ class GameEngine {
     this.renderPipeline = null;
     this.gestureRecognizer = null;
     this.gestureUI = null;
+    this.keyboardFallback = null;
 
     // Gesture state
     this.lastGestureResult = null;
@@ -31,6 +34,7 @@ class GameEngine {
     this.render = this.render.bind(this);
     this.resize = this.resize.bind(this);
     this.handleGestureComplete = this.handleGestureComplete.bind(this);
+    this.handleKeyboardSpell = this.handleKeyboardSpell.bind(this);
   }
 
   init() {
@@ -43,9 +47,14 @@ class GameEngine {
     this.renderPipeline = new RenderPipeline(this.ctx, this.width, this.height);
     this.gestureRecognizer = new GestureRecognizer();
     this.gestureUI = new GestureUI();
+    this.keyboardFallback = new KeyboardFallback();
 
     // Initialize input system
     this.inputSystem.init();
+
+    // Initialize keyboard fallback
+    this.keyboardFallback.init();
+    this.keyboardFallback.onSpellCast = this.handleKeyboardSpell;
 
     // Wire gesture recognition callback
     this.inputSystem.onStopDrawing = this.handleGestureComplete;
@@ -80,6 +89,10 @@ class GameEngine {
     const result = this.gestureRecognizer.recognize(points);
 
     if (result) {
+      // Extract trajectory direction from the drawn gesture
+      const trajectory = TrajectoryExtractor.extractFromCenter(points);
+      result.trajectory = trajectory;
+
       // Store result locally and in Zustand
       this.lastGestureResult = result;
       useGameStore.getState().setLastGesture(result);
@@ -89,12 +102,24 @@ class GameEngine {
       this.inputSystem.setRecognitionResult(result);
 
       // Debug logging
-      console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`);
+      console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`, trajectory ? `- Trajectory: ${(trajectory.angle * 180 / Math.PI).toFixed(0)}°` : '- No trajectory');
     } else {
       // No recognition or below threshold
       this.lastGestureResult = null;
       useGameStore.getState().clearGesture();
     }
+  }
+
+  handleKeyboardSpell(result) {
+    // Store result locally and in Zustand
+    this.lastGestureResult = result;
+    useGameStore.getState().setLastGesture(result);
+
+    // Show UI feedback (same as drawn gestures)
+    this.gestureUI.showResult(result);
+
+    // Debug logging
+    console.log(`Keyboard spell: ${result.name}`);
   }
 
   update(dt) {
@@ -175,6 +200,11 @@ class GameEngine {
       this.inputSystem.destroy();
     }
 
+    // Clean up keyboard fallback
+    if (this.keyboardFallback) {
+      this.keyboardFallback.destroy();
+    }
+
     // Stop game loop
     if (this.gameLoop) {
       this.gameLoop.stop();
@@ -193,6 +223,7 @@ class GameEngine {
     this.renderPipeline = null;
     this.gestureRecognizer = null;
     this.gestureUI = null;
+    this.keyboardFallback = null;
     this.lastGestureResult = null;
   }
 }

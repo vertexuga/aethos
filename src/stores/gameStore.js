@@ -12,8 +12,9 @@ export const useGameStore = create((set, get) => ({
   maxMana: 100,
 
   // Gesture state
-  lastGesture: null, // { name, score, damageModifier } or null
+  lastGesture: null, // { name, score, damageModifier, trajectory } or null
   isDrawing: false,
+  gestureHistory: [], // Track recent gestures for stats
 
   // Actions
   setGameState: (state) => set({ gameState: state }),
@@ -21,4 +22,7 @@ export const useGameStore = create((set, get) => ({
   setLastGesture: (gesture) => set({ lastGesture: gesture }),
   setIsDrawing: (drawing) => set({ isDrawing: drawing }),
   clearGesture: () => set({ lastGesture: null }),
+  addGestureHistory: (gesture) => set(state => ({
+    gestureHistory: [...state.gestureHistory.slice(-9), gesture]
+  })),
 }));
