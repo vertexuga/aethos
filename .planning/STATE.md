@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 ## Current Position
 
 Phase: 4 of 7 (Combat System)
-Plan: 0 of 2 in current phase
-Status: Not started
-Last activity: 2026-02-07 -- Phase 3 complete, verified
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-07 -- Completed 04-01-PLAN.md
 
-Progress: [██████░░░░] 43%
+Progress: [███████░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 5.0 minutes
-- Total execution time: 0.50 hours
+- Total plans completed: 7
+- Average duration: 4.7 minutes
+- Total execution time: 0.55 hours
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [██████░░░░] 43%
 | 01-foundation | 2 | 7.0m | 3.5m |
 | 02-gesture-recognition | 2 | 17.4m | 8.7m |
 | 03-spell-casting | 2 | 7.0m | 3.5m |
+| 04-combat-system | 1 | 4.0m | 4.0m |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3.4m), 02-02 (14.0m), 03-01 (3.0m), 03-02 (4.0m)
+- Last 5 plans: 02-02 (14.0m), 03-01 (3.0m), 03-02 (4.0m), 04-01 (4.0m)
 - Trend: Fast execution when no checkpoints, longer with user interaction
 
 *Updated after each plan completion*
@@ -71,6 +72,13 @@ Recent decisions affecting current work:
 - [03-02/VFX-003]: Magic Missile 3-circle tail trail for visual distinctness from QuickShot
 - [03-02/RENDER-002]: FireballExplosion expanding ring (24-40px based on accuracy) with 0.4s lifetime
 - [03-02/UI-002]: GestureUI displays spell names from SPELL_CONFIG instead of gesture names
+- [04-01/GAME-005]: Player movement at 250 px/sec with diagonal normalization (prevents faster diagonal speed)
+- [04-01/GAME-006]: Invincibility frames 1000ms with visual flicker prevents rapid damage stacking
+- [04-01/GAME-007]: Health bars on enemies (30x4px) and player HUD (200x12px) with color stages (green>60%, yellow>30%, red≤30%)
+- [04-01/GAME-008]: WASD keyboard handler coexists with Q/W/E spell shortcuts (independent systems)
+- [04-01/ARCH-003]: Object pooling for enemies (20 pre-allocated slimes) matching ProjectilePool pattern
+- [04-01/IMPL-005]: Circle-circle collision detection using squared distance optimization
+- [04-01/IMPL-006]: Detection-then-response collision pattern (projectile-enemy and enemy-player)
 
 ### Pending Todos
 
@@ -88,6 +96,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Phase 3 complete and verified - all spell casting systems functional
+Stopped at: Completed 04-01-PLAN.md - combat foundation with player, enemies, collision, HP system
 Resume file: None
-Next: Phase 4 (Combat System) - enemies, collision detection, damage, wave spawning
+Next: Phase 4 Plan 2 - wave spawning and progression mechanics
