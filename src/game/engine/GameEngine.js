@@ -9,6 +9,11 @@ import GestureUI from '../systems/GestureUI.js';
 import TrajectoryExtractor from '../systems/TrajectoryExtractor.js';
 import KeyboardFallback from '../systems/KeyboardFallback.js';
 import SpellCaster from '../systems/SpellCaster.js';
+import Player from '../entities/player/Player.js';
+import SlimeEnemy from '../entities/enemies/SlimeEnemy.js';
+import EnemyPool from '../systems/EnemyPool.js';
+import CollisionSystem from '../systems/CollisionSystem.js';
+import { ENEMY_CONFIG } from '../data/enemyConfig.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -28,8 +33,21 @@ class GameEngine {
     this.keyboardFallback = null;
     this.spellCaster = null;
 
+    // Combat systems
+    this.player = null;
+    this.enemyPool = null;
+    this.collisionSystem = null;
+
     // Gesture state
     this.lastGestureResult = null;
+
+    // WASD keyboard state
+    this.keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false
+    };
 
     // Bind methods
     this.update = this.update.bind(this);
@@ -37,6 +55,8 @@ class GameEngine {
     this.resize = this.resize.bind(this);
     this.handleGestureComplete = this.handleGestureComplete.bind(this);
     this.handleKeyboardSpell = this.handleKeyboardSpell.bind(this);
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+    this.handleKeyUp = this.handleKeyUp.bind(this);
   }
 
   init() {
@@ -51,6 +71,16 @@ class GameEngine {
     this.gestureUI = new GestureUI();
     this.keyboardFallback = new KeyboardFallback();
     this.spellCaster = new SpellCaster(this.entityManager);
+
+    // Create player at center
+    this.player = new Player({ x: this.width / 2, y: this.height / 2 });
+    this.player.setCanvasSize(this.width, this.height);
+
+    // Create enemy pool
+    this.enemyPool = new EnemyPool(SlimeEnemy, 20, this.player);
+
+    // Create collision system
+    this.collisionSystem = new CollisionSystem(this.player, this.enemyPool, this.spellCaster);
 
     // Set canvas size for spell caster
     this.spellCaster.setCanvasSize(this.width, this.height);
@@ -79,8 +109,46 @@ class GameEngine {
     // Add resize listener
     window.addEventListener('resize', this.resize);
 
+    // Add WASD keyboard listeners
+    window.addEventListener('keydown', this.handleKeyDown);
+    window.addEventListener('keyup', this.handleKeyUp);
+
+    // Spawn 5 test slimes at screen edges
+    this.spawnTestSlimes();
+
     // Start the loop
     this.gameLoop.start();
+  }
+
+  handleKeyDown(e) {
+    const key = e.key.toLowerCase();
+    if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+      this.keys[key] = true;
+      e.preventDefault();
+    }
+  }
+
+  handleKeyUp(e) {
+    const key = e.key.toLowerCase();
+    if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+      this.keys[key] = false;
+      e.preventDefault();
+    }
+  }
+
+  spawnTestSlimes() {
+    // Spawn slimes at screen edges
+    const positions = [
+      { x: 50, y: this.height / 2 },           // Left
+      { x: this.width - 50, y: this.height / 2 }, // Right
+      { x: this.width / 2, y: 50 },            // Top
+      { x: this.width / 2, y: this.height - 50 }, // Bottom
+      { x: this.width / 4, y: this.height / 4 }   // Top-left
+    ];
+
+    for (const pos of positions) {
+      this.enemyPool.spawn({ x: pos.x, y: pos.y });
+    }
   }
 
   handleGestureComplete(points) {
@@ -132,6 +200,15 @@ class GameEngine {
   }
 
   update(dt) {
+    // Update WASD movement direction for player
+    this.player.moveDirection.x = 0;
+    this.player.moveDirection.y = 0;
+
+    if (this.keys.w) this.player.moveDirection.y -= 1;
+    if (this.keys.s) this.player.moveDirection.y += 1;
+    if (this.keys.a) this.player.moveDirection.x -= 1;
+    if (this.keys.d) this.player.moveDirection.x += 1;
+
     // Update input system
     this.inputSystem.update(dt);
 
@@ -140,6 +217,15 @@ class GameEngine {
 
     // Update spell caster pools
     this.spellCaster.update(dt);
+
+    // Update player
+    this.player.update(dt);
+
+    // Update enemy pool
+    this.enemyPool.update(dt);
+
+    // Update collision system
+    this.collisionSystem.update(dt);
 
     // Update entity manager
     this.entityManager.update(dt);
@@ -188,8 +274,8 @@ class GameEngine {
     this.ctx.fillStyle = '#0a0a12';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Render pipeline (entities, then trail, then UI)
-    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation, this.gestureUI);
+    // Render pipeline (entities, player, enemies, trail, UI, HUD)
+    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation, this.gestureUI, this.player, this.enemyPool);
 
     // Render all systems
     this.systems.forEach(system => {
@@ -218,6 +304,11 @@ class GameEngine {
     if (this.spellCaster) {
       this.spellCaster.setCanvasSize(this.width, this.height);
     }
+
+    // Update player canvas size
+    if (this.player) {
+      this.player.setCanvasSize(this.width, this.height);
+    }
   }
 
   destroy() {
@@ -239,6 +330,10 @@ class GameEngine {
     // Remove resize listener
     window.removeEventListener('resize', this.resize);
 
+    // Remove WASD listeners
+    window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keyup', this.handleKeyUp);
+
     // Clear references
     this.canvas = null;
     this.ctx = null;
@@ -251,6 +346,9 @@ class GameEngine {
     this.gestureUI = null;
     this.keyboardFallback = null;
     this.spellCaster = null;
+    this.player = null;
+    this.enemyPool = null;
+    this.collisionSystem = null;
     this.lastGestureResult = null;
   }
 }
