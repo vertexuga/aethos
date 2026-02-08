@@ -1,3 +1,5 @@
+import { getElementalMultiplier } from '../data/spellConfig.js';
+
 class CollisionSystem {
   constructor(player, enemyPool, spellCaster) {
     this.player = player;
@@ -38,22 +40,27 @@ class CollisionSystem {
       projectiles.push(...this.spellCaster.fireballPool.getActive());
     }
 
-    // 1. Projectile-Enemy collisions
+    // 1. Projectile-Enemy collisions (piercing — projectiles pass through)
     for (const projectile of projectiles) {
       if (!projectile.active) continue;
 
       for (const enemy of enemies) {
         if (!enemy.active) continue;
 
+        // Skip enemies already hit by this projectile (piercing tracking)
+        if (projectile.hitEnemies && projectile.hitEnemies.has(enemy.id)) continue;
+
         if (this.checkCircleCollision(projectile, enemy)) {
-          // Apply damage from projectile to enemy
-          const damage = projectile.getDamage();
+          // Calculate elemental damage multiplier
+          const elemMultiplier = getElementalMultiplier(projectile.element, enemy.element);
+          const damage = projectile.getDamage() * elemMultiplier;
           enemy.takeDamage(damage);
 
-          // Destroy projectile
-          projectile.destroy();
+          // Track this enemy as hit (piercing — don't hit same enemy twice)
+          if (!projectile.hitEnemies) projectile.hitEnemies = new Set();
+          projectile.hitEnemies.add(enemy.id);
 
-          break; // Projectile can only hit one enemy
+          // Piercing: do NOT destroy projectile or break — it passes through
         }
       }
     }

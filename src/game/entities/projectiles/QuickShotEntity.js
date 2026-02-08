@@ -19,7 +19,9 @@ class QuickShotEntity extends Entity {
     this.baseDamage = config.baseDamage;
     this.lifetime = config.lifetime;
     this.damageModifier = damageModifier;
+    this.element = config.element; // null — no element
     this.age = 0; // milliseconds
+    this.hitEnemies = new Set(); // Piercing tracking
   }
 
   update(dt) {
@@ -46,22 +48,37 @@ class QuickShotEntity extends Entity {
     ctx.globalCompositeOperation = 'lighter';
 
     // Accuracy-based visual scaling
-    // Size: sloppy (0.5 mod) = 70%, perfect (1.0 mod) = 100%
     const sizeScale = 0.7 + 0.3 * this.damageModifier;
     const scaledSize = this.size * sizeScale;
 
-    // Brightness: sloppy = 0.8 alpha, perfect = 1.0
+    // Brightness
     const brightness = 0.6 + 0.4 * this.damageModifier;
     ctx.globalAlpha = brightness;
 
-    // Shadow glow: sloppy = 9, perfect = 12
-    ctx.shadowBlur = 6 + 6 * this.damageModifier;
+    // Pulsing glow effect
+    const pulse = 1.0 + 0.15 * Math.sin(this.age * 0.008);
+    const glowSize = scaledSize * pulse;
+
+    // Outer glow ring
+    ctx.shadowBlur = 12 + 8 * this.damageModifier;
     ctx.shadowColor = this.color;
 
-    // Draw filled circle
+    // Draw outer glow
     ctx.beginPath();
-    ctx.arc(this.x, this.y, scaledSize, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, glowSize * 1.3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(77, 208, 225, 0.15)`;
+    ctx.fill();
+
+    // Draw main circle
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, glowSize, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
+    ctx.fill();
+
+    // Draw bright core
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, glowSize * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
 
     ctx.restore();
@@ -83,6 +100,7 @@ class QuickShotEntity extends Entity {
     this.waypointsDone = false;
     this.age = 0;
     this.active = true;
+    this.hitEnemies = new Set(); // Reset piercing tracking
   }
 }
 

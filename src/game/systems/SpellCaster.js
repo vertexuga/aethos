@@ -18,6 +18,13 @@ class SpellCaster {
     // Canvas dimensions for keyboard fallback default spawning
     this.canvasWidth = 0;
     this.canvasHeight = 0;
+
+    // Player reference for spell origin
+    this.player = null;
+  }
+
+  setPlayer(player) {
+    this.player = player;
   }
 
   setCanvasSize(width, height) {
@@ -29,14 +36,19 @@ class SpellCaster {
     const { name, damageModifier, trajectory, fromKeyboard } = gestureResult;
 
     // Determine spawn position, direction, and waypoints
+    // All spells start at the player position
     let origin, direction, waypoints;
 
-    if (trajectory) {
-      origin = trajectory.origin;
-      direction = trajectory.direction;
-      waypoints = trajectory.waypoints || null;
-    } else if (fromKeyboard) {
+    if (this.player) {
+      origin = { x: this.player.x, y: this.player.y };
+    } else {
       origin = { x: this.canvasWidth / 2, y: this.canvasHeight / 2 };
+    }
+
+    if (trajectory) {
+      direction = trajectory.direction;
+      waypoints = null; // Disable waypoint arcs since spells now start at player
+    } else if (fromKeyboard) {
       direction = { x: 1, y: 0 };
       waypoints = null;
     } else {

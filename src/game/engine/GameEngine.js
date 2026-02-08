@@ -92,8 +92,9 @@ class GameEngine {
     // Create wave spawner
     this.waveSpawner = new WaveSpawner({ slime: this.enemyPool }, this.entityManager, this.width, this.height);
 
-    // Set canvas size for spell caster
+    // Set canvas size and player reference for spell caster
     this.spellCaster.setCanvasSize(this.width, this.height);
+    this.spellCaster.setPlayer(this.player);
 
     // Initialize input system
     this.inputSystem.init();

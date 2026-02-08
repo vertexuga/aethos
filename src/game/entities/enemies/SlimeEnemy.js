@@ -20,6 +20,7 @@ class SlimeEnemy extends Entity {
     this.hp = config.hp;
     this.contactDamage = config.contactDamage;
     this.xpReward = config.xpReward;
+    this.element = config.element || null; // 'plant' — weak to fire
 
     // White flash when taking damage
     this.damageFlash = false;
