@@ -3,7 +3,7 @@ import { SPELL_CONFIG } from '../../data/spellConfig.js';
 
 class FireballEntity extends Entity {
   constructor({ x, y, vx, vy, damageModifier = 1.0 }) {
-    const config = SPELL_CONFIG.zigzag;
+    const config = SPELL_CONFIG.line;
 
     super({
       x,

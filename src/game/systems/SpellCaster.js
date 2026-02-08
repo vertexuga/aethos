@@ -84,7 +84,7 @@ class SpellCaster {
       case 'triangle':
         projectile = this.magicMissilePool.spawn(spawnParams);
         break;
-      case 'zigzag':
+      case 'line':
         projectile = this.fireballPool.spawn(spawnParams);
         if (projectile) {
           projectile.onExpire = (x, y, damageModifier) => {

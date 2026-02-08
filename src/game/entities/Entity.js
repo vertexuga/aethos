@@ -20,6 +20,10 @@ class Entity {
   }
 
   update(dt) {
+    // Wall-aware steering for enemies (redirects velocity before applying)
+    if (this.wallSystem && this.player && !this.isPhased) {
+      this.wallSystem.steerAroundWalls(this, this.player.x, this.player.y);
+    }
     // dt is in seconds (already divided by 1000 in game loop)
     this.x += this.vx * dt;
     this.y += this.vy * dt;

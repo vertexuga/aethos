@@ -1,7 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GameEngine from '../game/engine/GameEngine';
 import { useGameStore } from '../stores/gameStore';
+import SpellForge from '../components/SpellForge';
 
 const GamePage = () => {
   const canvasRef = useRef(null);
@@ -9,7 +10,15 @@ const GamePage = () => {
   const navigate = useNavigate();
   const fps = useGameStore(state => state.fps);
   const setGameState = useGameStore(state => state.setGameState);
+  const spellForgeOpen = useGameStore(state => state.spellForgeOpen);
+  const setSpellForgeOpen = useGameStore(state => state.setSpellForgeOpen);
   const [entityCount, setEntityCount] = React.useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
+
+  useEffect(() => {
+    // Fade in from black after a frame
+    requestAnimationFrame(() => setFadeIn(false));
+  }, []);
 
   useEffect(() => {
     // Create and initialize game engine
@@ -35,11 +44,43 @@ const GamePage = () => {
         engineRef.current = null;
       }
       setGameState('menu');
+      setSpellForgeOpen(false);
     };
-  }, [setGameState]);
+  }, [setGameState, setSpellForgeOpen]);
+
+  // Tab key to toggle Spell Forge
+  useEffect(() => {
+    const handleTabKey = (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const store = useGameStore.getState();
+        const newOpen = !store.spellForgeOpen;
+        setSpellForgeOpen(newOpen);
+
+        // Pause/resume game loop
+        if (engineRef.current && engineRef.current.gameLoop) {
+          if (newOpen) {
+            engineRef.current.gameLoop.stop();
+          } else {
+            engineRef.current.gameLoop.start();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
+  }, [setSpellForgeOpen]);
 
   const handleBackToMenu = () => {
     navigate('/');
+  };
+
+  const handleCloseForge = () => {
+    setSpellForgeOpen(false);
+    if (engineRef.current && engineRef.current.gameLoop) {
+      engineRef.current.gameLoop.start();
+    }
   };
 
   return (
@@ -52,13 +93,35 @@ const GamePage = () => {
       backgroundColor: '#0a0a12',
       position: 'relative'
     }}>
+      {/* Video background behind game canvas */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          zIndex: 0,
+          opacity: 0.3,
+          pointerEvents: 'none',
+        }}
+      >
+        <source src="/bg-video.mp4" type="video/mp4" />
+      </video>
+
       <canvas
         ref={canvasRef}
         style={{
           display: 'block',
           width: '100%',
           height: '100%',
-          touchAction: 'none'
+          touchAction: 'none',
+          position: 'relative',
+          zIndex: 1,
         }}
       />
 
@@ -112,6 +175,22 @@ const GamePage = () => {
       >
         FPS: {fps} | Entities: {entityCount}
       </div>
+
+      {/* Spell Forge slide-in panel (always mounted for animation) */}
+      <SpellForge isOpen={spellForgeOpen} onClose={handleCloseForge} />
+
+      {/* Fade-in overlay from title screen transition */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 9999,
+          backgroundColor: '#0a0a12',
+          opacity: fadeIn ? 1 : 0,
+          pointerEvents: 'none',
+          transition: 'opacity 0.8s ease-in-out',
+        }}
+      />
     </div>
   );
 };

@@ -7,6 +7,9 @@ class WaveSpawner {
     this.entityManager = entityManager;
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
+    this.camera = null;
+    this.worldWidth = 0;
+    this.worldHeight = 0;
 
     this.currentWave = 0;
     this.waveState = 'waiting'; // waiting | spawning | active | cleared
@@ -100,28 +103,49 @@ class WaveSpawner {
     }
   }
 
+  setCamera(camera) {
+    this.camera = camera;
+  }
+
+  setWorldSize(w, h) {
+    this.worldWidth = w;
+    this.worldHeight = h;
+  }
+
   spawnEnemy(type) {
-    // Calculate random screen edge position
+    // Spawn just outside the current viewport (or canvas if no camera)
+    const viewLeft = this.camera ? this.camera.x : 0;
+    const viewTop = this.camera ? this.camera.y : 0;
+    const viewW = this.canvasWidth;
+    const viewH = this.canvasHeight;
+    const margin = 50;
+
     const edge = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
     let x, y;
 
     switch (edge) {
       case 0: // Top
-        x = Math.random() * this.canvasWidth;
-        y = -30;
+        x = viewLeft + Math.random() * viewW;
+        y = viewTop - margin;
         break;
       case 1: // Right
-        x = this.canvasWidth + 30;
-        y = Math.random() * this.canvasHeight;
+        x = viewLeft + viewW + margin;
+        y = viewTop + Math.random() * viewH;
         break;
       case 2: // Bottom
-        x = Math.random() * this.canvasWidth;
-        y = this.canvasHeight + 30;
+        x = viewLeft + Math.random() * viewW;
+        y = viewTop + viewH + margin;
         break;
       case 3: // Left
-        x = -30;
-        y = Math.random() * this.canvasHeight;
+        x = viewLeft - margin;
+        y = viewTop + Math.random() * viewH;
         break;
+    }
+
+    // Clamp spawn positions within world bounds
+    if (this.worldWidth > 0 && this.worldHeight > 0) {
+      x = Math.max(5, Math.min(this.worldWidth - 5, x));
+      y = Math.max(5, Math.min(this.worldHeight - 5, y));
     }
 
     // Spawn enemy from pool

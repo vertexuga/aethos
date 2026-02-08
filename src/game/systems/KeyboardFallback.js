@@ -1,13 +1,13 @@
 class KeyboardFallback {
   constructor() {
-    // Mapping of keys to spell names
+    // Mapping of keys to spell names (J/K/L — not Q/W/E which conflict with WASD + interact)
     this.keyMap = {
-      'q': 'circle',     // Quick Shot
-      'Q': 'circle',
-      'w': 'triangle',   // Magic Missile
-      'W': 'triangle',
-      'e': 'zigzag',     // Fireball
-      'E': 'zigzag'
+      'j': 'circle',     // Quick Shot
+      'J': 'circle',
+      'k': 'triangle',   // Magic Missile
+      'K': 'triangle',
+      'l': 'line',       // Fireball
+      'L': 'line'
     };
 
     // Callback for spell casting

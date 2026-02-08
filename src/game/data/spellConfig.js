@@ -40,17 +40,17 @@ export const SPELL_CONFIG = {
     tier: 'free',
     piercing: true
   },
-  zigzag: {          // Fireball
+  line: {            // Fireball
     name: 'Fireball',
     element: 'fire',  // Fire element — 2.5x vs plant
-    speed: 210,       // px/sec (reduced from 300)
-    size: 14,         // increased from 8
+    speed: 210,       // px/sec
+    size: 14,
     color: '#ff6b35', // Orange (visually distinct)
     baseDamage: 15,
     lifetime: 3000,   // ms
     manaCost: 0,
     tier: 'free',
     piercing: true,
-    explosionRadius: 50 // AoE radius in px (increased from 40)
+    explosionRadius: 50 // AoE radius in px
   }
 };

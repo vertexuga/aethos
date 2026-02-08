@@ -5,6 +5,7 @@ class EnemyPool {
     this.pool = [];
     this.active = [];
     this.player = player;
+    this.wallSystem = null;
 
     // Pre-allocate pool entities
     for (let i = 0; i < poolSize; i++) {
@@ -16,6 +17,16 @@ class EnemyPool {
 
   setPlayer(player) {
     this.player = player;
+  }
+
+  setWallSystem(wallSystem) {
+    this.wallSystem = wallSystem;
+    for (const enemy of this.pool) {
+      enemy.wallSystem = wallSystem;
+    }
+    for (const enemy of this.active) {
+      enemy.wallSystem = wallSystem;
+    }
   }
 
   spawn({ x, y }) {
@@ -30,6 +41,7 @@ class EnemyPool {
       console.warn(`EnemyPool exhausted for ${this.EnemyClass.name}, creating new entity`);
       enemy = new this.EnemyClass({ x, y });
       enemy.player = this.player;
+      enemy.wallSystem = this.wallSystem;
       enemy.active = true;
     }
 

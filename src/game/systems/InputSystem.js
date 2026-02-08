@@ -4,7 +4,7 @@ import { SPELL_CONFIG } from '../data/spellConfig.js';
 const SPELL_TRAIL_COLORS = {
   circle:   { r: 77,  g: 208, b: 225 },  // cyan (QuickShot)
   triangle: { r: 128, g: 222, b: 234 },  // light-cyan (MagicMissile)
-  zigzag:   { r: 255, g: 107, b: 53  },  // orange (Fireball)
+  line:     { r: 255, g: 107, b: 53  },  // orange (Fireball)
 };
 
 // Gold color for arc aiming trail
@@ -18,6 +18,7 @@ const MIN_STRAIGHT_DIST = 15; // Straight section must span at least 15px
 class InputSystem {
   constructor(canvas) {
     this.canvas = canvas;
+    this.camera = null; // Set via setCamera()
     this.isDrawing = false;
     this.currentPoints = []; // {x, y, timestamp}
     this.trailPoints = []; // {x, y, alpha, phase}
@@ -58,13 +59,22 @@ class InputSystem {
     this.canvas.addEventListener('touchcancel', this.handleTouchCancel);
   }
 
+  setCamera(camera) {
+    this.camera = camera;
+  }
+
   getCanvasCoords(pageX, pageY) {
     const rect = this.canvas.getBoundingClientRect();
-    return {
-      x: pageX - rect.left,
-      y: pageY - rect.top,
-      timestamp: Date.now()
-    };
+    let x = pageX - rect.left;
+    let y = pageY - rect.top;
+
+    // Convert screen coordinates to world coordinates
+    if (this.camera) {
+      x += this.camera.x;
+      y += this.camera.y;
+    }
+
+    return { x, y, timestamp: Date.now() };
   }
 
   startDrawing(x, y) {
