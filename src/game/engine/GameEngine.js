@@ -13,6 +13,8 @@ import Player from '../entities/player/Player.js';
 import SlimeEnemy from '../entities/enemies/SlimeEnemy.js';
 import EnemyPool from '../systems/EnemyPool.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
+import WaveSpawner from '../systems/WaveSpawner.js';
+import DeathParticlePool from '../systems/DeathParticlePool.js';
 import { ENEMY_CONFIG } from '../data/enemyConfig.js';
 
 class GameEngine {
@@ -37,6 +39,8 @@ class GameEngine {
     this.player = null;
     this.enemyPool = null;
     this.collisionSystem = null;
+    this.waveSpawner = null;
+    this.deathParticlePool = null;
 
     // Gesture state
     this.lastGestureResult = null;
@@ -82,6 +86,12 @@ class GameEngine {
     // Create collision system
     this.collisionSystem = new CollisionSystem(this.player, this.enemyPool, this.spellCaster);
 
+    // Create death particle pool
+    this.deathParticlePool = new DeathParticlePool(this.entityManager, 80);
+
+    // Create wave spawner
+    this.waveSpawner = new WaveSpawner({ slime: this.enemyPool }, this.entityManager, this.width, this.height);
+
     // Set canvas size for spell caster
     this.spellCaster.setCanvasSize(this.width, this.height);
 
@@ -113,8 +123,8 @@ class GameEngine {
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
 
-    // Spawn 5 test slimes at screen edges
-    this.spawnTestSlimes();
+    // Start first wave
+    this.waveSpawner.startNextWave();
 
     // Start the loop
     this.gameLoop.start();
@@ -136,20 +146,6 @@ class GameEngine {
     }
   }
 
-  spawnTestSlimes() {
-    // Spawn slimes at screen edges
-    const positions = [
-      { x: 50, y: this.height / 2 },           // Left
-      { x: this.width - 50, y: this.height / 2 }, // Right
-      { x: this.width / 2, y: 50 },            // Top
-      { x: this.width / 2, y: this.height - 50 }, // Bottom
-      { x: this.width / 4, y: this.height / 4 }   // Top-left
-    ];
-
-    for (const pos of positions) {
-      this.enemyPool.spawn({ x: pos.x, y: pos.y });
-    }
-  }
 
   handleGestureComplete(points) {
     // Split drawn points into shape (for recognition) and tail arc (for trajectory)
@@ -224,8 +220,23 @@ class GameEngine {
     // Update enemy pool
     this.enemyPool.update(dt);
 
+    // Update wave spawner
+    this.waveSpawner.update(dt);
+
     // Update collision system
     this.collisionSystem.update(dt);
+
+    // Check for dead enemies and spawn death particles
+    const activeEnemies = this.enemyPool.getActive();
+    for (const enemy of activeEnemies) {
+      if (enemy.justDied) {
+        this.deathParticlePool.spawnBurst(enemy.x, enemy.y, enemy.color);
+        enemy.justDied = false; // Reset flag
+      }
+    }
+
+    // Update death particle pool
+    this.deathParticlePool.update(dt);
 
     // Update entity manager
     this.entityManager.update(dt);
@@ -275,7 +286,7 @@ class GameEngine {
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     // Render pipeline (entities, player, enemies, trail, UI, HUD)
-    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation, this.gestureUI, this.player, this.enemyPool);
+    this.renderPipeline.render(this.ctx, this.entityManager, this.inputSystem, interpolation, this.gestureUI, this.player, this.enemyPool, this.waveSpawner);
 
     // Render all systems
     this.systems.forEach(system => {
@@ -308,6 +319,11 @@ class GameEngine {
     // Update player canvas size
     if (this.player) {
       this.player.setCanvasSize(this.width, this.height);
+    }
+
+    // Update wave spawner canvas size
+    if (this.waveSpawner) {
+      this.waveSpawner.setCanvasSize(this.width, this.height);
     }
   }
 
@@ -349,6 +365,8 @@ class GameEngine {
     this.player = null;
     this.enemyPool = null;
     this.collisionSystem = null;
+    this.waveSpawner = null;
+    this.deathParticlePool = null;
     this.lastGestureResult = null;
   }
 }
