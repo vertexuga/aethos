@@ -33,10 +33,6 @@ class GestureUI {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Shadow for readability
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-
     // Get spell display name from config, fallback to gesture name
     const spellConfig = SPELL_CONFIG[this.displayResult.name];
     const displayName = spellConfig ? spellConfig.name : this.displayResult.name;

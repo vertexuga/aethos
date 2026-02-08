@@ -1,56 +1,55 @@
-// Element weakness chart: fire > plant, water > fire, plant > water
-export const ELEMENT_CHART = {
-  fire:  { strongVs: 'plant', weakVs: 'water' },
-  water: { strongVs: 'fire',  weakVs: 'plant' },
-  plant: { strongVs: 'water', weakVs: 'fire'  }
-};
-
-// Returns damage multiplier for attacker element vs defender element
-export function getElementalMultiplier(attackElement, defendElement) {
-  if (!attackElement) return 1.0; // No element (Quick Shot) = neutral
-  if (!defendElement) return 1.0; // No element on defender = neutral
-  const chart = ELEMENT_CHART[attackElement];
-  if (!chart) return 1.0;
-  if (chart.strongVs === defendElement) return 2.5;
-  return 0.7; // Wrong element
-}
-
 export const SPELL_CONFIG = {
-  circle: {          // Quick Shot
-    name: 'Quick Shot',
-    element: null,    // No element — 1x on everything
-    speed: 280,       // px/sec (reduced from 400)
-    size: 12,         // base radius in px (increased from 6)
-    color: '#4dd0e1', // Cyan (free tier)
-    baseDamage: 10,
-    lifetime: 3000,   // ms
-    manaCost: 0,      // Free tier
-    tier: 'free',
+  star: {
+    name: 'Seeking Missile',
+    speed: 200,
+    size: 10,
+    color: '#e040fb',
+    baseDamage: 12,
+    lifetime: 5000,
+    manaCost: 15,
     piercing: true
   },
-  triangle: {        // Magic Missile
-    name: 'Magic Missile',
-    element: 'water', // Water element — 2.5x vs fire
-    speed: 175,       // px/sec (reduced from 250)
-    size: 10,         // increased from 5
-    color: '#4fc3f7', // Blue water color
-    baseDamage: 8,
-    lifetime: 4000,   // ms (longer for homing)
-    manaCost: 0,
-    tier: 'free',
-    piercing: true
-  },
-  line: {            // Fireball
-    name: 'Fireball',
-    element: 'fire',  // Fire element — 2.5x vs plant
-    speed: 210,       // px/sec
+  circle: {
+    name: 'Water Bomb',
+    speed: 250,
     size: 14,
-    color: '#ff6b35', // Orange (visually distinct)
-    baseDamage: 15,
-    lifetime: 3000,   // ms
+    color: '#29b6f6',
+    baseDamage: 25,
+    lifetime: 3000,
+    manaCost: 20,
+    splashRadius: 80,
+    puddleRadius: 60,
+    puddleDuration: 4000,
+    slowFactor: 0.4,
+    piercing: false
+  },
+  line: {
+    name: 'Lightning Strike',
+    color: '#ffeb3b',
+    baseDamage: 35,
+    manaCost: 25,
+    targets: 4,
+    range: 'viewport'
+  },
+  triangle: {
+    name: 'Earth Wave',
+    speed: 120,
+    size: 20,
+    color: '#8d6e63',
+    baseDamage: 20,
+    manaCost: 20,
+    maxSize: 120,
+    stunDuration: 1500,
+    lifetime: 2000
+  },
+  basic: {
+    name: 'Basic Attack',
+    speed: 300,
+    size: 8,
+    color: '#b0bec5',
+    baseDamage: 6,
+    lifetime: 2000,
     manaCost: 0,
-    tier: 'free',
-    piercing: true,
-    explosionRadius: 50 // AoE radius in px
+    piercing: true
   }
 };

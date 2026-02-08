@@ -86,23 +86,23 @@ export function getWaveConfig(waveNumber) {
     return WAVE_CONFIG[waveNumber - 1];
   }
 
-  // Procedural generation beyond wave 8
+  // Procedural generation beyond wave 8 — very slow scaling
   const extra = waveNumber - WAVE_CONFIG.length;
-  const slimeCount = 6 + extra * 1;
+  const slimeCount = 6 + Math.floor(extra * 0.3);
 
   const composition = [{ type: 'slime', count: slimeCount }];
 
-  // Add more enemy variety as waves progress
-  if (extra >= 1) composition.push({ type: 'phaseWraith', count: 1 + Math.floor(extra / 2) });
-  if (extra >= 2) composition.push({ type: 'gravityWell', count: 1 + Math.floor(extra / 3) });
-  if (extra >= 2) composition.push({ type: 'spellThief', count: 1 + Math.floor(extra / 3) });
-  if (extra >= 3) composition.push({ type: 'curseHexer', count: 1 + Math.floor(extra / 4) });
-  if (extra >= 4) composition.push({ type: 'riftCaller', count: 1 + Math.floor(extra / 4) });
+  // Add enemy variety very gradually
+  if (extra >= 4) composition.push({ type: 'phaseWraith', count: 1 + Math.floor(extra / 8) });
+  if (extra >= 8) composition.push({ type: 'gravityWell', count: 1 + Math.floor(extra / 10) });
+  if (extra >= 8) composition.push({ type: 'spellThief', count: 1 + Math.floor(extra / 10) });
+  if (extra >= 12) composition.push({ type: 'curseHexer', count: 1 + Math.floor(extra / 12) });
+  if (extra >= 16) composition.push({ type: 'riftCaller', count: 1 + Math.floor(extra / 12) });
 
   return {
     wave: waveNumber,
     composition,
-    spawnInterval: Math.max(500, 700 - extra * 15),
+    spawnInterval: Math.max(800, 1000 - extra * 5),
     delayBefore: 3000,
   };
 }

@@ -44,6 +44,25 @@ class CurseHexerEnemy extends Entity {
     this.damageFlashTimer = 0;
     this.justDied = false;
     this.player = null;
+    this.crystal = null;
+
+    // Wall attack state
+    this.wallStuckTimer = 0;
+    this.wallAttackDPS = 8;
+
+    // Stun & slow
+    this.stunTimer = 0;
+    this.slowFactor = 1.0;
+  }
+
+  getTarget() {
+    if (this.player) {
+      const dx = this.player.x - this.x;
+      const dy = this.player.y - this.y;
+      if (dx * dx + dy * dy < 200 * 200) return this.player;
+    }
+    if (this.crystal && this.crystal.active) return this.crystal;
+    return this.player;
   }
 
   takeDamage(amount) {
@@ -61,26 +80,53 @@ class CurseHexerEnemy extends Entity {
   update(dt) {
     if (!this.active || !this.player) return;
 
-    const dx = this.player.x - this.x;
-    const dy = this.player.y - this.y;
+    // Stun: skip AI while stunned
+    if (this.stunTimer > 0) {
+      this.hexPhase += dt * 2;
+      this.legPhase += dt * 5;
+      if (this.damageFlash) {
+        this.damageFlashTimer += dt * 1000;
+        if (this.damageFlashTimer >= this.damageFlashDuration) {
+          this.damageFlash = false;
+          this.damageFlashTimer = 0;
+        }
+      }
+      return;
+    }
+
+    const target = this.getTarget();
+    if (!target) return;
+
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Wall attack
+    if (this.wallSystem) {
+      const collidingWall = this.wallSystem.getCollidingWall(this);
+      if (collidingWall && collidingWall.destructible) {
+        this.wallStuckTimer += dt;
+        if (this.wallStuckTimer > 1.0) {
+          this.wallSystem.wallTakeDamage(collidingWall, this.wallAttackDPS * dt);
+        }
+      } else {
+        this.wallStuckTimer = 0;
+      }
+    }
 
     // Movement: maintain beam range distance
     if (dist > this.beamRange * 0.9 && dist > 0) {
-      // Move toward player to get in range
-      this.vx = (dx / dist) * this.speed;
-      this.vy = (dy / dist) * this.speed;
+      this.vx = (dx / dist) * this.speed * this.slowFactor;
+      this.vy = (dy / dist) * this.speed * this.slowFactor;
     } else if (dist < this.beamRange * 0.5 && dist > 0) {
-      // Too close — back away
-      this.vx = -(dx / dist) * this.speed * 0.8;
-      this.vy = -(dy / dist) * this.speed * 0.8;
+      this.vx = -(dx / dist) * this.speed * 0.8 * this.slowFactor;
+      this.vy = -(dy / dist) * this.speed * 0.8 * this.slowFactor;
     } else {
-      // Good range — strafe
       if (dist > 0) {
         const perpX = -dy / dist;
         const perpY = dx / dist;
-        this.vx = perpX * this.speed * 0.3;
-        this.vy = perpY * this.speed * 0.3;
+        this.vx = perpX * this.speed * 0.3 * this.slowFactor;
+        this.vy = perpY * this.speed * 0.3 * this.slowFactor;
       }
     }
 
@@ -155,16 +201,8 @@ class CurseHexerEnemy extends Entity {
     // Deal beam damage
     this.player.takeDamage(this.beamDamage);
 
-    // Slow player movement
-    this.player.speed *= this.curseSlow;
-
-    // Restore after duration
-    const originalSpeed = this.player.speed / this.curseSlow;
-    setTimeout(() => {
-      if (this.player) {
-        this.player.speed = originalSpeed;
-      }
-    }, this.curseDuration);
+    // Slow player movement (frame-based timer, auto-expires)
+    this.player.applySlow(this.curseSlow, this.curseDuration / 1000);
   }
 
   render(ctx) {
@@ -194,8 +232,6 @@ class CurseHexerEnemy extends Entity {
       ctx.lineTo(this.beamTargetX, this.beamTargetY);
       ctx.strokeStyle = `rgba(224, 64, 251, ${fadeAlpha * 0.8})`;
       ctx.lineWidth = 4;
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#e040fb';
       ctx.stroke();
 
       // Inner white beam
@@ -210,11 +246,6 @@ class CurseHexerEnemy extends Entity {
     let renderColor = this.color;
     if (this.damageFlash) {
       renderColor = '#ffffff';
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#ffffff';
-    } else {
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = this.color;
     }
 
     // Spider legs (4 animated lines)
@@ -262,6 +293,22 @@ class CurseHexerEnemy extends Entity {
     ctx.stroke();
     ctx.restore();
 
+    // Stun visual: rotating stars
+    if (this.stunTimer > 0) {
+      const starCount = 3;
+      const orbitRadius = this.size + 6;
+      const rotSpeed = Date.now() / 200;
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#ffeb3b';
+      ctx.font = `${Math.max(8, this.size * 0.6)}px sans-serif`;
+      for (let i = 0; i < starCount; i++) {
+        const angle = rotSpeed + (i * Math.PI * 2) / starCount;
+        const sx = this.x + Math.cos(angle) * orbitRadius;
+        const sy = this.y + Math.sin(angle) * orbitRadius;
+        ctx.fillText('*', sx - 4, sy + 4);
+      }
+    }
+
     ctx.restore();
     this.renderHealthBar(ctx);
   }
@@ -295,6 +342,10 @@ class CurseHexerEnemy extends Entity {
     this.player = player;
     this.beamState = 'idle';
     this.beamTimer = 0;
+
+    // Reset stun & slow
+    this.stunTimer = 0;
+    this.slowFactor = 1.0;
   }
 }
 

@@ -3,15 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import CustomCursor from '../components/CustomCursor';
 import ParticleCanvas from '../components/ParticleCanvas';
 import MenuLink from '../components/MenuLink';
+import CutsceneOverlay from '../components/CutsceneOverlay';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [transitioning, setTransitioning] = useState(false);
+  const [showCutscene, setShowCutscene] = useState(false);
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
   const parallaxRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
   const rafRef = useRef(null);
 
   const handleBeginJourney = useCallback(() => {
+    setShowCutscene(true);
+  }, []);
+
+  const handleCutsceneComplete = useCallback(() => {
+    setShowCutscene(false);
     setTransitioning(true);
     setTimeout(() => navigate('/game'), 1200);
   }, [navigate]);
@@ -51,7 +58,7 @@ const HomePage = () => {
   const navShift = { x: parallax.x * -3, y: parallax.y * -3 };
 
   return (
-    <div className="w-full h-screen relative select-none" style={{ backgroundColor: '#0a0a12', color: '#f4e8c1', cursor: 'none', overflow: 'hidden' }}>
+    <div className="w-full h-screen relative select-none m-20" style={{ backgroundColor: '#0a0a12', color: '#f4e8c1', cursor: 'none', overflow: 'hidden' }}>
       <CustomCursor />
 
       <div className="absolute inset-0 overflow-hidden z-0">
@@ -86,8 +93,8 @@ const HomePage = () => {
           style={{
             background: 'radial-gradient(ellipse at center, rgba(74, 143, 143, 0.1) 0%, transparent 70%)',
             filter: 'blur(40px)',
-            animation: 'float 20s ease-in-out infinite',
-            animationDelay: '-5s',
+            animation: 'float 8s ease-in-out infinite',
+            animationDelay: '-2s',
             transform: `translate(${bgShift.x}px, ${bgShift.y}px)`,
           }}
         ></div>
@@ -96,7 +103,7 @@ const HomePage = () => {
           style={{
             background: 'radial-gradient(ellipse at center, rgba(74, 143, 143, 0.1) 0%, transparent 70%)',
             filter: 'blur(40px)',
-            animation: 'float 25s ease-in-out infinite',
+            animation: 'float 8s ease-in-out infinite',
             transform: `translate(${bgShift.x * -1}px, ${bgShift.y * -1}px)`,
           }}
         ></div>
@@ -112,8 +119,8 @@ const HomePage = () => {
       <ParticleCanvas />
 
       <div
-        className="relative z-30 w-full h-full flex flex-col justify-between p-12 lg:p-24"
-        style={{ transform: `translate(${contentShift.x}px, ${contentShift.y}px)`, transition: 'transform 0.05s linear' }}
+        className="relative z-30 flex flex-col justify-between p-16 lg:p-32"
+        style={{ transform: `translate(${contentShift.x}px, ${contentShift.y}px)`, transition: 'transform 0.05s linear', margin: '60px', width: 'calc(100% - 120px)', height: 'calc(100% - 120px)' }}
       >
         <div className="flex justify-between items-start opacity-60" style={{ transform: `translate(${navShift.x * 0.5}px, ${navShift.y * 0.5}px)` }}>
           <div className="flex items-center gap-4">
@@ -132,12 +139,12 @@ const HomePage = () => {
           <div className="flex-1 flex flex-col justify-center items-start pl-12" style={{ transform: `translate(${parallax.x * -7}px, ${parallax.y * -4}px)` }}>
             <div className="w-1 h-24 bg-gradient-to-b from-transparent via-[#7eb8da] to-transparent mb-6 opacity-40 ml-2"></div>
 
-            <h1 className="text-7xl lg:text-9xl text-[#f4e8c1] tracking-widest relative" style={{ fontFamily: "'Cinzel Decorative', cursive", textShadow: '0 0 15px rgba(126, 184, 218, 0.2)' }}>
+            <h1 className="text-7xl lg:text-8xl text-[#f4e8c1] tracking-widest relative" style={{ fontFamily: "'Cinzel Decorative', cursive", fontWeight: 300, textShadow: '0 0 15px rgba(126, 184, 218, 0.2)' }}>
               AETHOS
               <span className="absolute -top-6 -right-6 text-2xl lg:text-4xl text-[#4a8f8f] opacity-40 italic tracking-normal" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Ep. I</span>
             </h1>
 
-            <h2 className="text-xl lg:text-2xl text-[#7eb8da] tracking-[0.5em] mt-4 ml-2 opacity-70 uppercase font-light" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+            <h2 className="text-xl lg:text-2xl text-[#7eb8da] tracking-[0.5em] mt-4 ml-2 opacity-70 uppercase" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300 }}>
               Fragments of the Void
             </h2>
 
@@ -178,7 +185,20 @@ const HomePage = () => {
         </div>
       </div>
 
+      {/* Grain/noise texture overlay */}
+      <div className="absolute inset-0 z-35 pointer-events-none" style={{ opacity: 0.3, mixBlendMode: 'overlay', overflow: 'hidden' }}>
+        <svg style={{ position: 'fixed', width: '200%', height: '200%', top: '-50%', left: '-50%', animation: 'grain-shift 0.8s steps(8) infinite' }}>
+          <filter id="grain-filter">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#grain-filter)" />
+        </svg>
+      </div>
+
+      {/* Vignette */}
       <div className="absolute inset-0 z-40 pointer-events-none" style={{ background: 'radial-gradient(circle at center, transparent 30%, rgba(10, 10, 18, 0.6) 80%, #0a0a12 100%)' }}></div>
+
+      {showCutscene && <CutsceneOverlay onComplete={handleCutsceneComplete} />}
 
       {/* Transition overlay — fades to black when navigating to game */}
       <div

@@ -12,6 +12,10 @@ class Entity {
     this.color = color;
     this.active = true;
 
+    // Previous position for render interpolation
+    this.prevX = x;
+    this.prevY = y;
+
     // Waypoint arc following (set by projectiles with arc trajectories)
     this.waypoints = null;
     this.waypointIdx = 0;
@@ -21,8 +25,11 @@ class Entity {
 
   update(dt) {
     // Wall-aware steering for enemies (redirects velocity before applying)
-    if (this.wallSystem && this.player && !this.isPhased) {
-      this.wallSystem.steerAroundWalls(this, this.player.x, this.player.y);
+    if (this.wallSystem && !this.isPhased) {
+      const steerTarget = this.getTarget ? this.getTarget() : this.player;
+      if (steerTarget) {
+        this.wallSystem.steerAroundWalls(this, steerTarget.x, steerTarget.y);
+      }
     }
     // dt is in seconds (already divided by 1000 in game loop)
     this.x += this.vx * dt;
@@ -105,9 +112,6 @@ class Entity {
 
     // Draw filled circle with subtle glow
     ctx.save();
-
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = this.color;
 
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);

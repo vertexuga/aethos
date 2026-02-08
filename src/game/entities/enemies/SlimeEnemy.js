@@ -62,6 +62,28 @@ class SlimeEnemy extends Entity {
 
     this.justDied = false;
     this.player = null;
+    this.crystal = null;
+
+    // Wall attack state
+    this.wallStuckTimer = 0;
+    this.wallAttackDPS = 15;
+
+    // Stun & slow
+    this.stunTimer = 0;
+    this.slowFactor = 1.0;
+  }
+
+  getTarget() {
+    // Switch to player if within 200px aggro range
+    if (this.player) {
+      const dx = this.player.x - this.x;
+      const dy = this.player.y - this.y;
+      if (dx * dx + dy * dy < 200 * 200) return this.player;
+    }
+    // Otherwise target crystal
+    if (this.crystal && this.crystal.active) return this.crystal;
+    // Fallback to player
+    return this.player;
   }
 
   takeDamage(amount) {
@@ -78,6 +100,19 @@ class SlimeEnemy extends Entity {
 
   update(dt) {
     if (!this.active || !this.player) return;
+
+    // Stun: skip AI while stunned
+    if (this.stunTimer > 0) {
+      this.bouncePhase += dt * 8;
+      if (this.damageFlash) {
+        this.damageFlashTimer += dt * 1000;
+        if (this.damageFlashTimer >= this.damageFlashDuration) {
+          this.damageFlash = false;
+          this.damageFlashTimer = 0;
+        }
+      }
+      return;
+    }
 
     // Group merge behavior overrides normal AI
     if (this.mergeState !== 'none') {
@@ -109,9 +144,25 @@ class SlimeEnemy extends Entity {
       return;
     }
 
-    const dx = this.player.x - this.x;
-    const dy = this.player.y - this.y;
+    const target = this.getTarget();
+    if (!target) return;
+
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Wall attack: if stuck against a wall for >1s, attack it
+    if (this.wallSystem) {
+      const collidingWall = this.wallSystem.getCollidingWall(this);
+      if (collidingWall && collidingWall.destructible) {
+        this.wallStuckTimer += dt;
+        if (this.wallStuckTimer > 1.0) {
+          this.wallSystem.wallTakeDamage(collidingWall, this.wallAttackDPS * dt);
+        }
+      } else {
+        this.wallStuckTimer = 0;
+      }
+    }
 
     // Dash state machine
     this.dashTimer += dt * 1000;
@@ -119,13 +170,12 @@ class SlimeEnemy extends Entity {
     switch (this.dashState) {
       case 'chasing':
         if (distance > 0) {
-          this.vx = (dx / distance) * this.speed;
-          this.vy = (dy / distance) * this.speed;
+          this.vx = (dx / distance) * this.speed * this.slowFactor;
+          this.vy = (dy / distance) * this.speed * this.slowFactor;
         }
         if (distance <= this.dashTriggerRange) {
           this.dashState = 'charging';
           this.dashTimer = 0;
-          // Lock dash direction
           if (distance > 0) {
             this.dashDirX = dx / distance;
             this.dashDirY = dy / distance;
@@ -134,10 +184,8 @@ class SlimeEnemy extends Entity {
         break;
 
       case 'charging':
-        // Slow down during charge (telegraph)
         this.vx *= 0.9;
         this.vy *= 0.9;
-        // Update dash direction to track player during charge
         if (distance > 0) {
           this.dashDirX = dx / distance;
           this.dashDirY = dy / distance;
@@ -151,7 +199,6 @@ class SlimeEnemy extends Entity {
         break;
 
       case 'dashing':
-        // Keep dash velocity (no change)
         if (this.dashTimer >= this.dashDuration) {
           this.dashState = 'cooldown';
           this.dashTimer = 0;
@@ -159,10 +206,9 @@ class SlimeEnemy extends Entity {
         break;
 
       case 'cooldown':
-        // Resume normal chase
         if (distance > 0) {
-          this.vx = (dx / distance) * this.speed;
-          this.vy = (dy / distance) * this.speed;
+          this.vx = (dx / distance) * this.speed * this.slowFactor;
+          this.vy = (dy / distance) * this.speed * this.slowFactor;
         }
         if (this.dashTimer >= this.dashCooldown) {
           this.dashState = 'chasing';
@@ -319,7 +365,6 @@ class SlimeEnemy extends Entity {
   }
 
   applyMerge() {
-    if (this.mergeSize >= 3) return;
     this.mergeSize++;
     const scale = 1 + 0.4 * (this.mergeSize - 1);
     this.size = Math.round(this.baseSize * scale);
@@ -358,10 +403,7 @@ class SlimeEnemy extends Entity {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(76, 255, 3, ${alpha})`;
-      ctx.shadowBlur = 4;
-      ctx.shadowColor = '#76ff03';
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
 
     // Center vortex swirl (survivor only renders this to avoid duplicates)
@@ -370,10 +412,7 @@ class SlimeEnemy extends Entity {
       ctx.beginPath();
       ctx.arc(this.mergeTarget.x, this.mergeTarget.y, vortexR, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(118, 255, 3, 0.25)';
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#76ff03';
       ctx.fill();
-      ctx.shadowBlur = 0;
       // Spinning energy lines
       for (let i = 0; i < 4; i++) {
         const angle = this.bouncePhase * 2 + (i * Math.PI / 2);
@@ -397,10 +436,7 @@ class SlimeEnemy extends Entity {
       ctx.arc(this.x, this.y, burstR, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(76, 255, 3, ${0.8 * (1 - burstProgress)})`;
       ctx.lineWidth = 3 * (1 - burstProgress);
-      ctx.shadowBlur = 20 * (1 - burstProgress);
-      ctx.shadowColor = '#76ff03';
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
   }
 
@@ -450,17 +486,6 @@ class SlimeEnemy extends Entity {
     let renderColor = this.color;
     if (this.damageFlash) {
       renderColor = '#ffffff';
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#ffffff';
-    } else {
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = this.color;
-    }
-
-    // Merge glow (orbiting or absorbing survivor)
-    if (this.mergeState === 'orbiting' || (this.mergeState === 'absorbing' && this.isMergeSurvivor)) {
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#76ff03';
     }
 
     // Charging telegraph: pulsing glow
@@ -468,14 +493,6 @@ class SlimeEnemy extends Entity {
       const chargeProgress = this.dashTimer / this.dashChargeTime;
       const pulseScale = 1 + chargeProgress * 0.3 + Math.sin(this.dashTimer * 0.02) * 0.1;
       ctx.scale(pulseScale, pulseScale);
-      ctx.shadowBlur = 15 + chargeProgress * 15;
-      ctx.shadowColor = '#76ff03';
-    }
-
-    // Dashing glow
-    if (this.dashState === 'dashing') {
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#b9f6ca';
     }
 
     // Main body
@@ -526,6 +543,22 @@ class SlimeEnemy extends Entity {
     ctx.arc(eyeSpacing + pupilDx, eyeY + pupilDy, pupilRadius, 0, Math.PI * 2);
     ctx.fillStyle = '#1b5e20';
     ctx.fill();
+
+    // Stun visual: rotating stars (local coordinate space)
+    if (this.stunTimer > 0) {
+      const starCount = 3;
+      const orbitRadius = this.size + 6;
+      const rotSpeed = Date.now() / 200;
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#ffeb3b';
+      ctx.font = `${Math.max(8, this.size * 0.6)}px sans-serif`;
+      for (let i = 0; i < starCount; i++) {
+        const angle = rotSpeed + (i * Math.PI * 2) / starCount;
+        const sx = Math.cos(angle) * orbitRadius;
+        const sy = Math.sin(angle) * orbitRadius;
+        ctx.fillText('*', sx - 4, sy + 4);
+      }
+    }
 
     ctx.restore();
 
@@ -597,6 +630,10 @@ class SlimeEnemy extends Entity {
     this.trailParticles = [];
     this.dripParticles = [];
     this.bouncePhase = Math.random() * Math.PI * 2;
+
+    // Reset stun & slow
+    this.stunTimer = 0;
+    this.slowFactor = 1.0;
   }
 }
 

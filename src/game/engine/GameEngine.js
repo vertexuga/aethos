@@ -25,9 +25,18 @@ import CraftedSpellCaster from '../systems/CraftedSpellCaster.js';
 import Camera from '../systems/Camera.js';
 import WallSystem from '../systems/WallSystem.js';
 import StructurePool from '../systems/StructurePool.js';
+import AccessorySystem from '../systems/AccessorySystem.js';
+import Crystal from '../entities/Crystal.js';
+import TeleportPad from '../entities/TeleportPad.js';
+import ZoneManager from './ZoneManager.js';
+import DungeonGuardianEnemy from '../entities/enemies/DungeonGuardianEnemy.js';
+import { SPELL_CONFIG } from '../data/spellConfig.js';
 import { ENEMY_CONFIG } from '../data/enemyConfig.js';
 import { ENEMY_DROP_MAP, DROP_AMOUNTS } from '../data/materialConfig.js';
 import { getStructurePlacements } from '../data/structureConfig.js';
+import { ACCESSORY_DROP_CHANCE, ACCESSORY_IDS } from '../data/accessoryConfig.js';
+import { MAX_DUNGEON_FLOOR } from '../data/dungeonConfig.js';
+import { DUNGEON_TIER_MULTIPLIERS } from '../data/dungeonEnemyConfig.js';
 
 class GameEngine {
   constructor(canvas) {
@@ -65,6 +74,31 @@ class GameEngine {
     this.wallSystem = null;
     this.structurePool = null;
 
+    // Crystal (base defense target)
+    this.crystal = null;
+
+    // Zone system
+    this.zoneManager = null;
+    this.teleportPad = null;
+    this.dungeonFloor = 1; // Current dungeon floor (1-5)
+
+    // Dungeon floor portal state
+    this.dungeonBossRoom = null; // { cx, cy } of boss room
+    this.dungeonPortalActive = false; // true when boss room cleared & portal available
+
+    // Warp state (V key to warp back from dungeon)
+    this.isWarping = false;
+    this.warpTimer = 0;
+    this.warpDuration = 3.0; // 3 seconds
+
+    // Accessory system
+    this.accessorySystem = null;
+
+    // Player respawn state
+    this.playerRespawning = false;
+    this.respawnTimer = 0;
+    this.respawnDuration = 3.0; // 3 seconds
+
     // Slime merge tracking (group-based)
     this.slimeMergeGroups = []; // { id, slimes, survivor, center, state, timer }
 
@@ -87,6 +121,7 @@ class GameEngine {
     this.handleKeyboardSpell = this.handleKeyboardSpell.bind(this);
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
+    this.handleHoverMove = this.handleHoverMove.bind(this);
   }
 
   init() {
@@ -116,6 +151,16 @@ class GameEngine {
     this.player.setWorldSize(this.worldWidth, this.worldHeight);
     this.player.setCamera(this.camera);
 
+    // Wire player -> engine ref for warp cancel
+    this.player.gameEngine = this;
+
+    // Create accessory system
+    this.accessorySystem = new AccessorySystem(this.player);
+    this.player.setAccessorySystem(this.accessorySystem);
+
+    // Create crystal at world center
+    this.crystal = new Crystal(this.worldWidth / 2, this.worldHeight / 2);
+
     // Create wall system
     this.wallSystem = new WallSystem(this.worldWidth, this.worldHeight);
 
@@ -135,11 +180,14 @@ class GameEngine {
       phaseWraith: new EnemyPool(PhaseWraithEnemy, 10, this.player),
       riftCaller: new EnemyPool(RiftCallerEnemy, 8, this.player),
       curseHexer: new EnemyPool(CurseHexerEnemy, 8, this.player),
+      dungeonGuardian: new EnemyPool(DungeonGuardianEnemy, 10, this.player),
     };
 
-    // Wire wall system to enemies for wall-aware steering
+    // Wire wall system, crystal, and camera to enemies
     for (const key in this.enemyPools) {
       this.enemyPools[key].setWallSystem(this.wallSystem);
+      this.enemyPools[key].setCrystal(this.crystal);
+      this.enemyPools[key].setCamera(this.camera);
     }
 
     // Wire special enemy references
@@ -155,6 +203,7 @@ class GameEngine {
 
     // Create collision system (pass all pools)
     this.collisionSystem = new CollisionSystem(this.player, this.enemyPools, this.spellCaster);
+    this.collisionSystem.setCrystal(this.crystal);
 
     // Create death particle pool
     this.deathParticlePool = new DeathParticlePool(this.entityManager, 120);
@@ -165,6 +214,12 @@ class GameEngine {
       // Small mana bonus on pickup
       this.player.mana = Math.min(this.player.maxMana, this.player.mana + 2);
     }, 50);
+
+    // Create zone manager
+    this.zoneManager = new ZoneManager();
+
+    // Create teleport pad near crystal (offset to the right)
+    this.teleportPad = new TeleportPad(this.worldWidth / 2 + 80, this.worldHeight / 2 + 80);
 
     // Create crafted spell caster
     this.craftedSpellCaster = new CraftedSpellCaster(this.player, this.enemyPools);
@@ -177,9 +232,11 @@ class GameEngine {
     this.waveSpawner.setCamera(this.camera);
     this.waveSpawner.setWorldSize(this.worldWidth, this.worldHeight);
 
-    // Set canvas size and player reference for spell caster
+    // Set canvas size, player, camera, and enemy pools for spell caster
     this.spellCaster.setCanvasSize(this.worldWidth, this.worldHeight);
     this.spellCaster.setPlayer(this.player);
+    this.spellCaster.setCamera(this.camera);
+    this.spellCaster.setEnemyPools(this.enemyPools);
 
     // Initialize input system
     this.inputSystem.init();
@@ -209,6 +266,19 @@ class GameEngine {
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
 
+    // Mouse tracking for HUD tooltips
+    this.canvas.addEventListener('mousemove', this.handleHoverMove);
+
+    // Wire zone manager with base state
+    this.zoneManager.setBaseState({
+      wallSystem: this.wallSystem,
+      structurePool: this.structurePool,
+      enemyPools: this.enemyPools,
+      crystal: this.crystal,
+      waveSpawner: this.waveSpawner,
+      camera: this.camera,
+    });
+
     // Start first wave
     this.waveSpawner.startNextWave();
 
@@ -223,38 +293,158 @@ class GameEngine {
       e.preventDefault();
     }
 
-    // Crafted spell keys (1 and 2)
-    if (key === '1' || key === '2') {
+    // Crafted spell keys (1-5)
+    if (key >= '1' && key <= '5') {
       const slot = parseInt(key) - 1;
-      if (this.craftedSpellCaster) {
+      const store = useGameStore.getState();
+      if (slot < store.maxEquipSlots && this.craftedSpellCaster) {
         this.craftedSpellCaster.castSlot(slot);
         this.player.triggerCastGlow();
       }
       e.preventDefault();
     }
 
-    // E key for structure build / repair
-    if (key === 'e' && this.structurePool && this.player) {
-      // Priority 1: build unbuilt structures
-      const unbuilt = this.structurePool.getNearestUnbuiltInRange(this.player.x, this.player.y, 60);
-      if (unbuilt) {
-        const cost = unbuilt.config.buildCost;
-        const store = useGameStore.getState();
-        // Check if player can afford
-        let canAfford = true;
-        for (const [mat, count] of Object.entries(cost)) {
-          if ((store.inventory[mat] || 0) < count) { canAfford = false; break; }
-        }
-        if (canAfford) {
-          store.removeMaterials(cost);
-          unbuilt.build();
-        }
-        return;
+    // V key to start warp (dungeon → base)
+    if (key === 'v' && this.zoneManager && this.zoneManager.isInDungeon()) {
+      if (!this.isWarping) {
+        this.isWarping = true;
+        this.warpTimer = 0;
+        useGameStore.getState().setIsWarping(true);
+        useGameStore.getState().setWarpProgress(0);
       }
-      // Priority 2: repair damaged built structures
-      const damaged = this.structurePool.getNearestDamagedInRange(this.player.x, this.player.y, 60);
-      if (damaged) {
-        damaged.repair();
+      e.preventDefault();
+    }
+
+    // E key for teleport pad (base → dungeon) or structure/wall build / repair
+    if (key === 'e' && this.player) {
+      // Check teleport pad first
+      if (this.teleportPad && this.zoneManager && this.zoneManager.isInBase()) {
+        if (this.teleportPad.isPlayerInRange(this.player)) {
+          this.enterDungeon();
+          return;
+        }
+      }
+
+      // Check dungeon floor portal
+      if (this.zoneManager && this.zoneManager.isInDungeon() && this.dungeonPortalActive && this.dungeonBossRoom) {
+        const dx = this.player.x - this.dungeonBossRoom.cx;
+        const dy = this.player.y - this.dungeonBossRoom.cy;
+        if (dx * dx + dy * dy < 80 * 80) {
+          this.advanceDungeonFloor();
+          return;
+        }
+      }
+
+      // Check loot chests in dungeon
+      if (this.zoneManager && this.zoneManager.isInDungeon()) {
+        for (const chest of this.zoneManager.dungeonLootChests) {
+          if (!chest.active || chest.opened) continue;
+          if (chest.isPlayerInRange(this.player)) {
+            const loot = chest.open();
+            if (loot) {
+              const store = useGameStore.getState();
+              // Add materials
+              for (const mat of loot.materials) {
+                store.addMaterial(mat.type, mat.count);
+              }
+              // Add upgrade tokens
+              if (loot.tokens > 0) {
+                store.addCrystalUpgradeTokens(loot.tokens);
+              }
+              // Add accessory
+              if (loot.accessory && this.accessorySystem) {
+                const randomId = ACCESSORY_IDS[Math.floor(Math.random() * ACCESSORY_IDS.length)];
+                if (this.accessorySystem.addAccessory(randomId)) {
+                  store.addAccessory(randomId);
+                }
+              }
+            }
+            return;
+          }
+        }
+      }
+
+      const store = useGameStore.getState();
+
+      // Priority 1: build unbuilt structures
+      if (this.structurePool) {
+        const unbuilt = this.structurePool.getNearestUnbuiltInRange(this.player.x, this.player.y, 60);
+        if (unbuilt) {
+          const cost = unbuilt.config.buildCost;
+          let canAfford = true;
+          for (const [mat, count] of Object.entries(cost)) {
+            if ((store.inventory[mat] || 0) < count) { canAfford = false; break; }
+          }
+          if (canAfford) {
+            store.removeMaterials(cost);
+            unbuilt.build();
+            if (unbuilt.config.grantsSlot) {
+              store.addEquipSlot();
+            }
+          }
+          return;
+        }
+      }
+
+      // Priority 2: upgrade built structures
+      if (this.structurePool) {
+        const upgradeable = this.structurePool.getNearestUpgradeableInRange(this.player.x, this.player.y, 60);
+        if (upgradeable) {
+          const cost = upgradeable.getUpgradeCost();
+          if (cost) {
+            let canAfford = true;
+            for (const [mat, count] of Object.entries(cost)) {
+              if ((store.inventory[mat] || 0) < count) { canAfford = false; break; }
+            }
+            if (canAfford) {
+              store.removeMaterials(cost);
+              upgradeable.upgradeTier();
+            }
+          }
+          return;
+        }
+      }
+
+      // Priority 3: build unbuilt wall slots
+      if (this.wallSystem) {
+        const unbuiltWall = this.wallSystem.getNearestUnbuiltSlotInRange(this.player.x, this.player.y, 80);
+        if (unbuiltWall) {
+          const cost = this.wallSystem.getBuildCost();
+          let canAfford = true;
+          for (const [mat, count] of Object.entries(cost)) {
+            if ((store.inventory[mat] || 0) < count) { canAfford = false; break; }
+          }
+          if (canAfford) {
+            store.removeMaterials(cost);
+            this.wallSystem.buildWallSlot(unbuiltWall);
+          }
+          return;
+        }
+      }
+
+      // Priority 4: repair damaged built structures
+      if (this.structurePool) {
+        const damaged = this.structurePool.getNearestDamagedInRange(this.player.x, this.player.y, 60);
+        if (damaged) {
+          damaged.repair();
+          return;
+        }
+      }
+
+      // Priority 5: repair damaged wall slots
+      if (this.wallSystem) {
+        const damagedWall = this.wallSystem.getNearestDamagedWallInRange(this.player.x, this.player.y, 80);
+        if (damagedWall) {
+          const cost = this.wallSystem.getRepairCost();
+          let canAfford = true;
+          for (const [mat, count] of Object.entries(cost)) {
+            if ((store.inventory[mat] || 0) < count) { canAfford = false; break; }
+          }
+          if (canAfford) {
+            store.removeMaterials(cost);
+            this.wallSystem.repairWallSlot(damagedWall);
+          }
+        }
       }
     }
   }
@@ -264,6 +454,14 @@ class GameEngine {
     if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
       this.keys[key] = false;
       e.preventDefault();
+    }
+  }
+
+  handleHoverMove(e) {
+    if (this.renderPipeline) {
+      const rect = this.canvas.getBoundingClientRect();
+      this.renderPipeline.screenMouseX = e.clientX - rect.left;
+      this.renderPipeline.screenMouseY = e.clientY - rect.top;
     }
   }
 
@@ -280,45 +478,92 @@ class GameEngine {
   }
 
   handleGestureComplete(points) {
-    // Split drawn points into shape (for recognition) and tail arc (for trajectory)
-    const { shapePoints, trajectory } = TrajectoryExtractor.splitAndExtract(points);
+    // Direction from the last two points of the raw stroke
+    const direction = TrajectoryExtractor.directionFromEnd(points);
+    if (!direction) return;
 
-    // Recognize the gesture from shape points only (tail excluded for closing shapes)
-    const result = this.gestureRecognizer.recognize(shapePoints);
+    const trajectory = {
+      origin: { x: points[points.length - 1].x, y: points[points.length - 1].y },
+      direction,
+      angle: Math.atan2(direction.y, direction.x),
+      waypoints: null,
+      hasArc: false,
+    };
 
-    if (result) {
-      result.trajectory = trajectory;
+    // Split drawn points for shape recognition
+    const { shapePoints } = TrajectoryExtractor.splitAndExtract(points);
 
-      // Store result locally and in Zustand
-      this.lastGestureResult = result;
-      useGameStore.getState().setLastGesture(result);
+    // Recognize the gesture; fall back to basic attack if unrecognized
+    let result = this.gestureRecognizer.recognize(shapePoints);
 
-      // Show visual feedback
-      this.gestureUI.showResult(result);
-
-      // Color trail with spell color (for non-closing shapes that didn't get early recognition)
-      this.inputSystem.setSpellRecognition(result.name);
-
-      // Cast the spell (same frame as recognition)
-      this.spellCaster.castSpell(result);
-
-      // Trigger cast glow on player
-      this.player.triggerCastGlow();
-
-      // Notify Spell Thieves of the cast
-      this.notifySpellThieves(result.name);
-
-      // Debug logging
-      const arcInfo = trajectory?.hasArc ? `Arc: ${trajectory.waypoints.length} waypoints` : 'Straight';
-      console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}%`, trajectory ? `- ${arcInfo} ${(trajectory.angle * 180 / Math.PI).toFixed(0)}°` : '- No trajectory');
-    } else {
-      // No recognition or below threshold
-      this.lastGestureResult = null;
-      useGameStore.getState().clearGesture();
+    if (!result) {
+      // Unrecognized shape → basic attack (free, no mana cost)
+      result = {
+        name: 'basic',
+        score: 0.5,
+        damageModifier: 0.5,
+      };
     }
+
+    // Mana check — if insufficient mana, downgrade to basic attack
+    const config = SPELL_CONFIG[result.name];
+    if (config && config.manaCost > 0) {
+      if (this.player.mana < config.manaCost) {
+        result = {
+          name: 'basic',
+          score: 1.0,
+          damageModifier: 1.0,
+        };
+      } else {
+        this.player.mana -= config.manaCost;
+      }
+    }
+
+    // Always use last-two-points direction
+    result.trajectory = trajectory;
+
+    // Pass raw drawn points for seeking missile waypoints
+    result.rawPoints = points.map(p => ({ x: p.x, y: p.y }));
+
+    // Store result locally and in Zustand
+    this.lastGestureResult = result;
+    useGameStore.getState().setLastGesture(result);
+
+    // Show visual feedback
+    this.gestureUI.showResult(result);
+
+    // Color trail with spell color
+    this.inputSystem.setSpellRecognition(result.name);
+
+    // Cast the spell (same frame as recognition)
+    this.spellCaster.castSpell(result);
+
+    // Trigger cast glow on player
+    this.player.triggerCastGlow();
+
+    // Notify Spell Thieves of the cast
+    this.notifySpellThieves(result.name);
+
+    // Debug logging
+    console.log(`Gesture: ${result.name} (${(result.score * 100).toFixed(0)}%) - Damage: ${(result.damageModifier * 100).toFixed(0)}% - Angle: ${(trajectory.angle * 180 / Math.PI).toFixed(0)}°`);
   }
 
   handleKeyboardSpell(result) {
+    // Mana check — if insufficient mana, downgrade to basic attack
+    const config = SPELL_CONFIG[result.name];
+    if (config && config.manaCost > 0) {
+      if (this.player.mana < config.manaCost) {
+        result = {
+          name: 'basic',
+          score: 1.0,
+          damageModifier: 1.0,
+          fromKeyboard: true,
+        };
+      } else {
+        this.player.mana -= config.manaCost;
+      }
+    }
+
     // Store result locally and in Zustand
     this.lastGestureResult = result;
     useGameStore.getState().setLastGesture(result);
@@ -337,6 +582,247 @@ class GameEngine {
 
     // Debug logging
     console.log(`Keyboard spell: ${result.name}`);
+  }
+
+  enterDungeon() {
+    if (!this.zoneManager) return;
+
+    // Save base world dimensions for later restoration
+    this.baseWorldWidth = this.worldWidth;
+    this.baseWorldHeight = this.worldHeight;
+
+    // Generate and enter dungeon at current floor
+    const floor = this.dungeonFloor;
+    const result = this.zoneManager.generateAndEnterDungeon(floor);
+    useGameStore.getState().setDungeonFloor(floor);
+
+    // Update world bounds to dungeon dimensions
+    this.worldWidth = result.worldWidth;
+    this.worldHeight = result.worldHeight;
+
+    // Move player to dungeon spawn room center
+    this.player.x = result.spawnX;
+    this.player.y = result.spawnY;
+    this.player.setWorldSize(this.worldWidth, this.worldHeight);
+
+    // Update camera world bounds
+    this.camera.worldWidth = this.worldWidth;
+    this.camera.worldHeight = this.worldHeight;
+    // Snap camera to player immediately
+    this.camera.x = this.player.x - this.camera.viewWidth / 2;
+    this.camera.y = this.player.y - this.camera.viewHeight / 2;
+    this.camera.clamp();
+
+    // Update enemy pool wall system and zone reference for dungeon
+    const dungeonWalls = this.zoneManager.getActiveWallSystem();
+    for (const key in this.enemyPools) {
+      this.enemyPools[key].setWallSystem(dungeonWalls);
+      this.enemyPools[key].setActiveZone('dungeon');
+    }
+    this.collisionSystem.setActiveZone('dungeon');
+
+    // Save boss room position for floor portal
+    this.dungeonBossRoom = result.dungeonData.bossRoom
+      ? { cx: result.dungeonData.bossRoom.cx, cy: result.dungeonData.bossRoom.cy }
+      : null;
+    this.dungeonPortalActive = false;
+
+    // Tier multipliers for enemy stat scaling
+    const tierMult = DUNGEON_TIER_MULTIPLIERS[floor] || DUNGEON_TIER_MULTIPLIERS[1];
+
+    // Spawn dungeon enemies from room data
+    const enemyTypeMap = {
+      slime: 'slime',
+      spellThief: 'spellThief',
+      gravityWell: 'gravityWell',
+      phaseWraith: 'phaseWraith',
+      curseHexer: 'curseHexer',
+    };
+    for (const room of result.dungeonData.rooms) {
+      if (!room.enemies) continue;
+      for (const enemyDef of room.enemies) {
+        const poolKey = enemyTypeMap[enemyDef.type];
+        if (poolKey && this.enemyPools[poolKey]) {
+          const enemy = this.enemyPools[poolKey].spawn({ x: enemyDef.x, y: enemyDef.y });
+          enemy.crystal = null; // No crystal target in dungeon
+          enemy._zone = 'dungeon';
+          // Apply tier scaling
+          enemy.hp = Math.round(enemy.hp * tierMult.hp);
+          enemy.maxHp = Math.round(enemy.maxHp * tierMult.hp);
+          enemy.contactDamage = Math.round(enemy.contactDamage * tierMult.damage);
+        }
+      }
+      // Boss rooms also get dungeon guardians
+      if (room.role === 'boss') {
+        const guardian = this.enemyPools.dungeonGuardian.spawn({ x: room.cx, y: room.cy });
+        guardian.crystal = null; // No crystal target in dungeon
+        guardian._zone = 'dungeon';
+        // Apply tier scaling to guardian
+        guardian.hp = Math.round(guardian.hp * tierMult.hp);
+        guardian.maxHp = Math.round(guardian.maxHp * tierMult.hp);
+        guardian.contactDamage = Math.round(guardian.contactDamage * tierMult.damage);
+      }
+    }
+
+    console.log(`Entered dungeon floor ${floor}!`, result.dungeonData.rooms.length, 'rooms');
+  }
+
+  cancelWarp() {
+    this.isWarping = false;
+    this.warpTimer = 0;
+    useGameStore.getState().setIsWarping(false);
+    useGameStore.getState().setWarpProgress(0);
+  }
+
+  completeWarp() {
+    this.isWarping = false;
+    this.warpTimer = 0;
+    useGameStore.getState().setIsWarping(false);
+    useGameStore.getState().setWarpProgress(0);
+
+    if (this.zoneManager) {
+      // Release all active dungeon enemies before switching zones
+      for (const key in this.enemyPools) {
+        const active = this.enemyPools[key].getActive();
+        for (let i = active.length - 1; i >= 0; i--) {
+          if (active[i].active && active[i]._zone === 'dungeon') {
+            active[i].destroy();
+          }
+        }
+      }
+
+      this.zoneManager.exitDungeon();
+
+      // Restore base world dimensions
+      if (this.baseWorldWidth) {
+        this.worldWidth = this.baseWorldWidth;
+        this.worldHeight = this.baseWorldHeight;
+        this.camera.worldWidth = this.worldWidth;
+        this.camera.worldHeight = this.worldHeight;
+        this.player.setWorldSize(this.worldWidth, this.worldHeight);
+      }
+
+      // Move player back to teleport pad location
+      if (this.teleportPad) {
+        this.player.x = this.teleportPad.x;
+        this.player.y = this.teleportPad.y + 50;
+      }
+
+      // Snap camera to player
+      this.camera.x = this.player.x - this.camera.viewWidth / 2;
+      this.camera.y = this.player.y - this.camera.viewHeight / 2;
+      this.camera.clamp();
+
+      // Restore enemy pool wall system and zone reference to base
+      for (const key in this.enemyPools) {
+        this.enemyPools[key].setWallSystem(this.wallSystem);
+        this.enemyPools[key].setActiveZone('base');
+      }
+      this.collisionSystem.setActiveZone('base');
+    }
+
+    // Reset waves back to level 1 when returning from dungeon
+    if (this.waveSpawner) {
+      this.waveSpawner.resetToWave1();
+    }
+
+    // Advance to next floor (cap at max)
+    if (this.dungeonFloor < MAX_DUNGEON_FLOOR) {
+      this.dungeonFloor++;
+    }
+    useGameStore.getState().setDungeonFloor(this.dungeonFloor);
+
+    console.log(`Warped back to base! Next dungeon: floor ${this.dungeonFloor}`);
+  }
+
+  advanceDungeonFloor() {
+    if (!this.zoneManager || !this.zoneManager.isInDungeon()) return;
+    if (this.dungeonFloor >= MAX_DUNGEON_FLOOR) {
+      // Max floor reached — warp back to base
+      this.completeWarp();
+      return;
+    }
+
+    // Release all active dungeon enemies
+    for (const key in this.enemyPools) {
+      const active = this.enemyPools[key].getActive();
+      for (let i = active.length - 1; i >= 0; i--) {
+        if (active[i].active && active[i]._zone === 'dungeon') {
+          active[i].destroy();
+        }
+      }
+    }
+
+    // Clear dungeon state
+    this.zoneManager.exitDungeon();
+
+    // Advance floor
+    this.dungeonFloor++;
+    useGameStore.getState().setDungeonFloor(this.dungeonFloor);
+
+    // Generate and enter next floor (reuses enterDungeon logic)
+    const floor = this.dungeonFloor;
+    const result = this.zoneManager.generateAndEnterDungeon(floor);
+    useGameStore.getState().setDungeonFloor(floor);
+
+    // Update world bounds
+    this.worldWidth = result.worldWidth;
+    this.worldHeight = result.worldHeight;
+    this.player.x = result.spawnX;
+    this.player.y = result.spawnY;
+    this.player.setWorldSize(this.worldWidth, this.worldHeight);
+    this.camera.worldWidth = this.worldWidth;
+    this.camera.worldHeight = this.worldHeight;
+    this.camera.x = this.player.x - this.camera.viewWidth / 2;
+    this.camera.y = this.player.y - this.camera.viewHeight / 2;
+    this.camera.clamp();
+
+    // Update enemy pool references for new dungeon
+    const dungeonWalls = this.zoneManager.getActiveWallSystem();
+    for (const key in this.enemyPools) {
+      this.enemyPools[key].setWallSystem(dungeonWalls);
+      this.enemyPools[key].setActiveZone('dungeon');
+    }
+    this.collisionSystem.setActiveZone('dungeon');
+
+    // Save boss room and reset portal
+    this.dungeonBossRoom = result.dungeonData.bossRoom
+      ? { cx: result.dungeonData.bossRoom.cx, cy: result.dungeonData.bossRoom.cy }
+      : null;
+    this.dungeonPortalActive = false;
+
+    // Tier multipliers
+    const tierMult = DUNGEON_TIER_MULTIPLIERS[floor] || DUNGEON_TIER_MULTIPLIERS[1];
+
+    // Spawn enemies
+    const enemyTypeMap = {
+      slime: 'slime', spellThief: 'spellThief', gravityWell: 'gravityWell',
+      phaseWraith: 'phaseWraith', curseHexer: 'curseHexer',
+    };
+    for (const room of result.dungeonData.rooms) {
+      if (!room.enemies) continue;
+      for (const enemyDef of room.enemies) {
+        const poolKey = enemyTypeMap[enemyDef.type];
+        if (poolKey && this.enemyPools[poolKey]) {
+          const enemy = this.enemyPools[poolKey].spawn({ x: enemyDef.x, y: enemyDef.y });
+          enemy.crystal = null;
+          enemy._zone = 'dungeon';
+          enemy.hp = Math.round(enemy.hp * tierMult.hp);
+          enemy.maxHp = Math.round(enemy.maxHp * tierMult.hp);
+          enemy.contactDamage = Math.round(enemy.contactDamage * tierMult.damage);
+        }
+      }
+      if (room.role === 'boss') {
+        const guardian = this.enemyPools.dungeonGuardian.spawn({ x: room.cx, y: room.cy });
+        guardian.crystal = null;
+        guardian._zone = 'dungeon';
+        guardian.hp = Math.round(guardian.hp * tierMult.hp);
+        guardian.maxHp = Math.round(guardian.maxHp * tierMult.hp);
+        guardian.contactDamage = Math.round(guardian.contactDamage * tierMult.damage);
+      }
+    }
+
+    console.log(`Advanced to dungeon floor ${floor}!`);
   }
 
   updateSlimeMerge(dt) {
@@ -406,11 +892,9 @@ class GameEngine {
             for (const s of absorbed) {
               s.die();
             }
-            // Apply merge boosts per absorbed slime (capped at mergeSize 3)
+            // Apply merge boosts per absorbed slime (no cap — infinite merging)
             for (const s of absorbed) {
-              if (survivor.mergeSize < 3) {
-                survivor.applyMerge();
-              }
+              survivor.applyMerge();
             }
             survivor.mergeState = 'none';
             survivor.mergeGroupId = null;
@@ -424,7 +908,7 @@ class GameEngine {
 
     // Detect new clusters of 3+ non-merging slimes
     const eligible = activeSlimes.filter(s =>
-      s.active && s.mergeState === 'none' && s.mergeSize < 3 &&
+      s.active && s.mergeState === 'none' &&
       s.dashState !== 'dashing' && s.dashState !== 'charging'
     );
 
@@ -499,6 +983,66 @@ class GameEngine {
   }
 
   update(dt) {
+    // Warp mechanic (V key to return from dungeon)
+    if (this.isWarping) {
+      // Cancel warp if player moves or takes damage
+      const isMoving = this.keys.w || this.keys.a || this.keys.s || this.keys.d;
+      if (isMoving) {
+        this.cancelWarp();
+      } else {
+        this.warpTimer += dt;
+        useGameStore.getState().setWarpProgress(this.warpTimer / this.warpDuration);
+        if (this.warpTimer >= this.warpDuration) {
+          this.completeWarp();
+        }
+      }
+    }
+
+    // Player respawn mechanic
+    if (this.player && this.player.hp <= 0 && !this.playerRespawning) {
+      this.playerRespawning = true;
+      this.respawnTimer = this.respawnDuration;
+      // If in dungeon, warp back to base first
+      if (this.zoneManager && this.zoneManager.isInDungeon()) {
+        this.cancelWarp();
+        this.completeWarp();
+      }
+    }
+    if (this.playerRespawning) {
+      this.respawnTimer -= dt;
+      if (this.respawnTimer <= 0) {
+        // Respawn at crystal
+        const rx = this.crystal ? this.crystal.x : this.worldWidth / 2;
+        const ry = this.crystal ? this.crystal.y + 40 : this.worldHeight / 2 + 40;
+        this.player.respawn(rx, ry);
+        this.playerRespawning = false;
+        this.respawnTimer = 0;
+        // Give 2s invincibility
+        this.player.invincible = true;
+        this.player.invincibilityTimer = 0;
+        this.player.invincibilityDuration = 2000;
+      }
+    }
+
+    // Update background zone (base sim when in dungeon)
+    if (this.zoneManager) {
+      this.zoneManager.updateBackgroundZone(dt);
+
+      // Sync crystal HP even while in dungeon
+      if (this.crystal) {
+        useGameStore.getState().setCrystalHP(this.crystal.hp, this.crystal.maxHp);
+        useGameStore.getState().setCrystalUnderAttack(this.crystal.isUnderAttack);
+      }
+    }
+
+    // Update teleport pad
+    if (this.teleportPad && this.zoneManager && this.zoneManager.isInBase()) {
+      this.teleportPad.update(dt);
+    }
+
+    // Set base regen flag on player
+    this.player.isInBase = !this.zoneManager || this.zoneManager.isInBase();
+
     // Update WASD movement direction for player
     this.player.moveDirection.x = 0;
     this.player.moveDirection.y = 0;
@@ -520,9 +1064,10 @@ class GameEngine {
     // Update player
     this.player.update(dt);
 
-    // Resolve player-wall collisions
-    if (this.wallSystem) {
-      this.wallSystem.resolveCircleWallCollision(this.player);
+    // Resolve player-wall collisions (use zone-appropriate wall system)
+    const activeWalls = this.zoneManager ? this.zoneManager.getActiveWallSystem() : this.wallSystem;
+    if (activeWalls) {
+      activeWalls.resolveCircleWallCollision(this.player, true);
     }
 
     // Update camera to follow player
@@ -532,24 +1077,59 @@ class GameEngine {
     // Sync mana to store
     useGameStore.getState().setMana(this.player.mana);
 
-    // Update all enemy pools
-    for (const key in this.enemyPools) {
-      this.enemyPools[key].update(dt);
+    // Update crystal (only directly in base — background sim handles it in dungeon)
+    const inBase = !this.zoneManager || this.zoneManager.isInBase();
+    if (this.crystal && this.crystal.active && inBase) {
+      this.crystal.update(dt, this.enemyPools);
+      this.crystal.checkWarning(this.enemyPools);
+      useGameStore.getState().setCrystalHP(this.crystal.hp, this.crystal.maxHp);
+      useGameStore.getState().setCrystalUnderAttack(this.crystal.isUnderAttack);
     }
 
-    // Resolve enemy-wall collisions
-    if (this.wallSystem) {
-      for (const key in this.enemyPools) {
-        for (const enemy of this.enemyPools[key].getActive()) {
-          if (enemy.active) {
-            this.wallSystem.resolveCircleWallCollision(enemy);
-          }
+    // Determine active zone for enemy processing
+    const currentZone = this.zoneManager ? this.zoneManager.getActiveZone() : 'base';
+
+    // Save previous positions for render interpolation (before physics)
+    for (const key in this.enemyPools) {
+      for (const enemy of this.enemyPools[key].getActive()) {
+        if (enemy.active && enemy._zone === currentZone) {
+          enemy.prevX = enemy.x;
+          enemy.prevY = enemy.y;
         }
       }
     }
 
-    // Update wave spawner
-    this.waveSpawner.update(dt);
+    // Update all enemy pools (zone filtering happens inside pool.update)
+    for (const key in this.enemyPools) {
+      this.enemyPools[key].update(dt);
+    }
+
+    // Resolve enemy-wall collisions and clamp to world bounds (active zone only)
+    if (activeWalls) {
+      for (const key in this.enemyPools) {
+        for (const enemy of this.enemyPools[key].getActive()) {
+          if (enemy.active && enemy._zone === currentZone) {
+            activeWalls.resolveCircleWallCollision(enemy);
+          }
+        }
+      }
+    }
+    // Clamp enemies to world bounds (active zone only)
+    const ww = this.worldWidth;
+    const wh = this.worldHeight;
+    for (const key in this.enemyPools) {
+      for (const enemy of this.enemyPools[key].getActive()) {
+        if (!enemy.active || enemy._zone !== currentZone) continue;
+        enemy.x = Math.max(enemy.size, Math.min(ww - enemy.size, enemy.x));
+        enemy.y = Math.max(enemy.size, Math.min(wh - enemy.size, enemy.y));
+      }
+    }
+
+
+    // Update wave spawner (only in base zone — dungeon has pre-placed enemies)
+    if (!this.zoneManager || this.zoneManager.isInBase()) {
+      this.waveSpawner.update(dt);
+    }
 
     // Update collision system
     this.collisionSystem.update(dt);
@@ -557,13 +1137,13 @@ class GameEngine {
     // Update slime merge mechanic
     this.updateSlimeMerge(dt);
 
-    // Update wall system animation
-    if (this.wallSystem) {
-      this.wallSystem.update(dt);
+    // Update wall system animation (active zone)
+    if (activeWalls) {
+      activeWalls.update(dt);
     }
 
-    // Update structures
-    if (this.structurePool) {
+    // Update structures (only in base)
+    if (this.structurePool && inBase) {
       this.structurePool.update(dt, this.enemyPools);
 
       // Enemy-structure contact damage (DPS-based)
@@ -590,11 +1170,23 @@ class GameEngine {
         if (enemy.justDied) {
           this.deathParticlePool.spawnBurst(enemy.x, enemy.y, enemy.color);
 
-          // Spawn material drop
+          // Notify accessory system of kill
+          if (this.accessorySystem) {
+            this.accessorySystem.onEnemyKilled(key);
+          }
+
+          // Spawn material drop (with accessory modifiers)
           const materialType = ENEMY_DROP_MAP[key];
           if (materialType) {
             const dropRange = DROP_AMOUNTS[key] || { min: 1, max: 1 };
-            const dropCount = dropRange.min + Math.floor(Math.random() * (dropRange.max - dropRange.min + 1));
+            let dropCount = dropRange.min + Math.floor(Math.random() * (dropRange.max - dropRange.min + 1));
+            // Treasure Compass + Lucky Foot modifiers
+            if (this.accessorySystem) {
+              if (dropCount > 0) {
+                dropCount = Math.ceil(dropCount * this.accessorySystem.getDropCountModifier());
+                dropCount *= this.accessorySystem.rollExtraDrops();
+              }
+            }
             for (let i = 0; i < dropCount; i++) {
               const offsetX = (Math.random() - 0.5) * 20;
               const offsetY = (Math.random() - 0.5) * 20;
@@ -606,13 +1198,49 @@ class GameEngine {
             }
           }
 
+          // Accessory drop chance
+          if (this.accessorySystem) {
+            const dropChance = ACCESSORY_DROP_CHANCE[key];
+            if (dropChance && Math.random() < dropChance) {
+              const randomId = ACCESSORY_IDS[Math.floor(Math.random() * ACCESSORY_IDS.length)];
+              if (this.accessorySystem.addAccessory(randomId)) {
+                useGameStore.getState().addAccessory(randomId);
+              }
+            }
+          }
+
           enemy.justDied = false;
+        }
+      }
+    }
+
+    // Update dungeon loot chests and check for floor portal activation
+    if (this.zoneManager && this.zoneManager.isInDungeon()) {
+      for (const chest of this.zoneManager.dungeonLootChests) {
+        if (chest.active) chest.update(dt);
+      }
+
+      // Check if all dungeon enemies are dead → activate floor portal
+      if (this.dungeonBossRoom && !this.dungeonPortalActive) {
+        let dungeonEnemiesAlive = 0;
+        for (const key in this.enemyPools) {
+          for (const enemy of this.enemyPools[key].getActive()) {
+            if (enemy.active && enemy._zone === 'dungeon') dungeonEnemiesAlive++;
+          }
+        }
+        if (dungeonEnemiesAlive === 0) {
+          this.dungeonPortalActive = true;
         }
       }
     }
 
     // Update material drop pool
     this.materialDropPool.update(dt);
+
+    // Update accessory system
+    if (this.accessorySystem) {
+      this.accessorySystem.update(dt, this.enemyPools);
+    }
 
     // Update crafted spell caster
     this.craftedSpellCaster.update(dt);
@@ -628,11 +1256,23 @@ class GameEngine {
     for (const entity of entities) {
       // Projectiles get destroyed when out of world bounds or hitting walls
       if (entity.type.startsWith('projectile-')) {
+        // Earth wave is stationary — don't destroy on wall collision
+        if (entity.type === 'projectile-earthwave') continue;
+
         if (entity.x < -entity.size || entity.x > this.worldWidth + entity.size ||
             entity.y < -entity.size || entity.y > this.worldHeight + entity.size) {
-          entity.destroy();
-        } else if (this.wallSystem && this.wallSystem.checkProjectileWallCollision(entity)) {
-          entity.destroy();
+          // Water bomb explodes at end of life/boundary
+          if (entity.type === 'projectile-waterbomb' && entity.explode) {
+            entity.explode();
+          } else {
+            entity.destroy();
+          }
+        } else if (activeWalls && activeWalls.checkProjectileWallCollision(entity)) {
+          if (entity.type === 'projectile-waterbomb' && entity.explode) {
+            entity.explode();
+          } else {
+            entity.destroy();
+          }
         }
       } else {
         // Non-projectiles clamped to world bounds
@@ -661,7 +1301,17 @@ class GameEngine {
     this.ctx.fillStyle = 'rgba(10, 10, 18, 0.75)';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Render pipeline (entities, player, enemies, trail, UI, HUD, material drops, crafted spells, walls, structures)
+    // Determine the active wall system for the current zone
+    const renderWalls = this.zoneManager ? this.zoneManager.getActiveWallSystem() : this.wallSystem;
+
+    // Render pipeline
+    // Pass respawn state for HUD overlay
+    this.renderPipeline.playerRespawning = this.playerRespawning;
+    this.renderPipeline.respawnTimer = this.respawnTimer;
+    // Pass dungeon portal state
+    this.renderPipeline._dungeonPortalActive = this.dungeonPortalActive;
+    this.renderPipeline._dungeonBossRoom = this.dungeonBossRoom;
+
     this.renderPipeline.render(
       this.ctx,
       this.entityManager,
@@ -674,8 +1324,13 @@ class GameEngine {
       this.materialDropPool,
       this.craftedSpellCaster,
       this.camera,
-      this.wallSystem,
-      this.structurePool
+      renderWalls,
+      this.structurePool,
+      this.accessorySystem,
+      this.crystal,
+      this.teleportPad,
+      this.zoneManager,
+      this.spellCaster
     );
 
     // Render all systems
@@ -741,6 +1396,9 @@ class GameEngine {
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('keyup', this.handleKeyUp);
 
+    // Remove hover listener
+    if (this.canvas) this.canvas.removeEventListener('mousemove', this.handleHoverMove);
+
     // Clear references
     this.canvas = null;
     this.ctx = null;
@@ -763,6 +1421,10 @@ class GameEngine {
     this.camera = null;
     this.wallSystem = null;
     this.structurePool = null;
+    this.accessorySystem = null;
+    this.crystal = null;
+    this.zoneManager = null;
+    this.teleportPad = null;
     this.slimeMergeGroups = null;
     this.lastGestureResult = null;
   }

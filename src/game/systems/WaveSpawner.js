@@ -12,7 +12,7 @@ class WaveSpawner {
     this.worldHeight = 0;
 
     this.currentWave = 0;
-    this.waveState = 'waiting'; // waiting | spawning | active | cleared
+    this.waveState = 'waiting'; // waiting | spawning | cooldown
     this.spawnQueue = [];
     this.spawnTimer = 0;
     this.spawnInterval = 0;
@@ -21,9 +21,9 @@ class WaveSpawner {
     this.totalEnemiesInWave = 0;
     this.enemiesSpawnedInWave = 0;
 
-    // For cleared state transition
-    this.clearedTimer = 0;
-    this.clearedDelay = 1500; // 1.5s delay after clearing before next wave
+    // Time-based: cooldown between waves
+    this.cooldownTimer = 0;
+    this.waveCooldown = 60000; // 60s between waves (ms) — slow paced base defense
   }
 
   startNextWave() {
@@ -57,6 +57,28 @@ class WaveSpawner {
     console.log(`Wave ${this.currentWave} starting: ${this.totalEnemiesInWave} enemies`);
   }
 
+  /**
+   * Reset waves back to wave 1 (called when returning from dungeon).
+   * Clears all active enemies.
+   */
+  resetToWave1() {
+    // Release all active enemies
+    for (const poolKey in this.enemyPools) {
+      const active = this.enemyPools[poolKey].getActive();
+      for (let i = active.length - 1; i >= 0; i--) {
+        if (active[i].active) {
+          active[i].active = false;
+        }
+      }
+    }
+
+    this.currentWave = 0;
+    this.waveState = 'cooldown';
+    this.cooldownTimer = 0;
+    this.spawnQueue = [];
+    console.log('Waves reset to level 1');
+  }
+
   shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -82,22 +104,16 @@ class WaveSpawner {
           this.spawnEnemy(enemyType);
           this.spawnTimer = 0; // Reset timer for next spawn
         } else {
-          // Queue empty - switch to active
-          this.waveState = 'active';
+          // Queue empty — go to cooldown, then start next wave
+          this.waveState = 'cooldown';
+          this.cooldownTimer = 0;
+          console.log(`Wave ${this.currentWave} spawned! Next wave in ${this.waveCooldown / 1000}s`);
         }
       }
-    } else if (this.waveState === 'active') {
-      // Check if all enemies from this wave are dead
-      const activeEnemyCount = this.getActiveEnemyCount();
-      if (activeEnemyCount === 0) {
-        this.waveState = 'cleared';
-        this.clearedTimer = 0;
-        console.log(`Wave ${this.currentWave} cleared!`);
-      }
-    } else if (this.waveState === 'cleared') {
-      // Auto-start next wave after brief delay
-      this.clearedTimer += dt * 1000;
-      if (this.clearedTimer >= this.clearedDelay) {
+    } else if (this.waveState === 'cooldown') {
+      // Time-based: auto-start next wave after cooldown
+      this.cooldownTimer += dt * 1000;
+      if (this.cooldownTimer >= this.waveCooldown) {
         this.startNextWave();
       }
     }
@@ -150,6 +166,7 @@ class WaveSpawner {
 
     // Spawn enemy from pool
     const enemy = this.enemyPools[type].spawn({ x, y });
+    enemy._zone = 'base'; // Tag as base enemy for background simulation
     this.enemiesSpawnedInWave++;
   }
 

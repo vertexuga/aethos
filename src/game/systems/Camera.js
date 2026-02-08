@@ -49,7 +49,11 @@ class Camera {
 
   applyTransform(ctx) {
     ctx.save();
-    ctx.translate(-this.x + this.shakeOffsetX, -this.y + this.shakeOffsetY);
+    // Round to integer pixels to prevent sub-pixel jitter on wall grids
+    ctx.translate(
+      Math.round(-this.x + this.shakeOffsetX),
+      Math.round(-this.y + this.shakeOffsetY)
+    );
   }
 
   restore(ctx) {

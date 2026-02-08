@@ -1,10 +1,10 @@
-import { SPELL_CONFIG } from '../data/spellConfig.js';
-
 // Spell name → trail RGB for real-time coloring
 const SPELL_TRAIL_COLORS = {
-  circle:   { r: 77,  g: 208, b: 225 },  // cyan (QuickShot)
-  triangle: { r: 128, g: 222, b: 234 },  // light-cyan (MagicMissile)
-  line:     { r: 255, g: 107, b: 53  },  // orange (Fireball)
+  star:     { r: 224, g: 64,  b: 251 },  // purple (Seeking Missile)
+  circle:   { r: 41,  g: 182, b: 246 },  // blue (Water Bomb)
+  triangle: { r: 141, g: 110, b: 99  },  // brown (Earth Wave)
+  line:     { r: 255, g: 235, b: 59  },  // yellow (Lightning Strike)
+  basic:    { r: 176, g: 190, b: 197 },  // gray (Basic Attack)
 };
 
 // Gold color for arc aiming trail
@@ -351,16 +351,10 @@ class InputSystem {
         if (phase === 'shape' && this.spellTrailColor) {
           const c = this.spellTrailColor;
           ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
-          ctx.shadowColor = `rgba(${c.r}, ${c.g}, ${c.b}, 0.8)`;
-          ctx.shadowBlur = 20;
         } else if (phase === 'arc') {
           ctx.strokeStyle = `rgba(${ARC_COLOR.r}, ${ARC_COLOR.g}, ${ARC_COLOR.b}, ${alpha})`;
-          ctx.shadowColor = `rgba(${ARC_COLOR.r}, ${ARC_COLOR.g}, ${ARC_COLOR.b}, 0.6)`;
-          ctx.shadowBlur = 12;
         } else {
           ctx.strokeStyle = `rgba(74, 143, 143, ${alpha})`;
-          ctx.shadowColor = 'rgba(126, 184, 218, 0.6)';
-          ctx.shadowBlur = 15;
         }
 
         ctx.beginPath();

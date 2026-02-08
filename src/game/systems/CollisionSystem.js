@@ -1,5 +1,3 @@
-import { getElementalMultiplier } from '../data/spellConfig.js';
-
 function randomDamageMultiplier() {
   return 0.8 + Math.random() * 0.4; // [0.8, 1.2]
 }
@@ -7,8 +5,18 @@ function randomDamageMultiplier() {
 class CollisionSystem {
   constructor(player, enemyPools, spellCaster) {
     this.player = player;
-    this.enemyPools = enemyPools; // { slime: EnemyPool, spellThief: EnemyPool, ... }
+    this.enemyPools = enemyPools;
     this.spellCaster = spellCaster;
+    this.crystal = null;
+    this._activeZone = 'base';
+  }
+
+  setActiveZone(zone) {
+    this._activeZone = zone;
+  }
+
+  setCrystal(crystal) {
+    this.crystal = crystal;
   }
 
   checkCircleCollision(a, b) {
@@ -21,12 +29,50 @@ class CollisionSystem {
 
   update(dt) {
     this.detectAndResolveCollisions();
+    this.checkEnemyCrystalCollisions(dt);
+    this.applyPuddleSlows();
+    this.updateEnemyStuns(dt);
+  }
+
+  checkEnemyCrystalCollisions(dt) {
+    if (!this.crystal || !this.crystal.active) return;
+
+    const enemies = this.getAllActiveEnemies();
+    for (const enemy of enemies) {
+      if (!enemy.active) continue;
+      if (enemy.isPhased) continue;
+
+      const dx = enemy.x - this.crystal.x;
+      const dy = enemy.y - this.crystal.y;
+      const distSq = dx * dx + dy * dy;
+      const minDist = enemy.size + this.crystal.size;
+
+      if (distSq < minDist * minDist) {
+        // Crystal takes contact damage (DPS-based)
+        if (enemy.contactDamage > 0) {
+          this.crystal.takeDamage(enemy.contactDamage * dt);
+        }
+
+        // Push enemy away from crystal
+        const dist = Math.sqrt(distSq);
+        if (dist > 0.01) {
+          const overlap = minDist - dist;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          enemy.x += nx * overlap;
+          enemy.y += ny * overlap;
+        }
+      }
+    }
   }
 
   getAllActiveEnemies() {
     const enemies = [];
+    const zone = this._activeZone;
     for (const key in this.enemyPools) {
-      enemies.push(...this.enemyPools[key].getActive());
+      for (const enemy of this.enemyPools[key].getActive()) {
+        if (enemy._zone === zone) enemies.push(enemy);
+      }
     }
     return enemies;
   }
@@ -35,34 +81,45 @@ class CollisionSystem {
     const enemies = this.getAllActiveEnemies();
 
     // Get all active projectiles from all pools
-    const projectiles = [];
-    if (this.spellCaster.quickShotPool) {
-      projectiles.push(...this.spellCaster.quickShotPool.getActive());
+    const piercingProjectiles = [];
+    const waterBombs = [];
+    const earthWaves = [];
+
+    if (this.spellCaster.seekingMissilePool) {
+      piercingProjectiles.push(...this.spellCaster.seekingMissilePool.getActive());
     }
-    if (this.spellCaster.magicMissilePool) {
-      projectiles.push(...this.spellCaster.magicMissilePool.getActive());
+    if (this.spellCaster.basicAttackPool) {
+      piercingProjectiles.push(...this.spellCaster.basicAttackPool.getActive());
     }
-    if (this.spellCaster.fireballPool) {
-      projectiles.push(...this.spellCaster.fireballPool.getActive());
+    if (this.spellCaster.waterBombPool) {
+      waterBombs.push(...this.spellCaster.waterBombPool.getActive());
+    }
+    if (this.spellCaster.earthWavePool) {
+      earthWaves.push(...this.spellCaster.earthWavePool.getActive());
     }
 
-    // 1. Projectile-Enemy collisions (piercing)
-    for (const projectile of projectiles) {
+    // 1a. Piercing projectiles vs enemies (seeking missile + basic attack)
+    for (const projectile of piercingProjectiles) {
       if (!projectile.active) continue;
 
       for (const enemy of enemies) {
         if (!enemy.active) continue;
-
-        // Skip enemies already hit by this projectile
         if (projectile.hitEnemies && projectile.hitEnemies.has(enemy.id)) continue;
-
-        // Phase Wraith invulnerability check
         if (enemy.isPhased) continue;
 
         if (this.checkCircleCollision(projectile, enemy)) {
-          const elemMultiplier = getElementalMultiplier(projectile.element, enemy.element);
-          const damage = projectile.getDamage() * elemMultiplier * randomDamageMultiplier();
+          let damage = projectile.getDamage() * randomDamageMultiplier();
+
+          if (this.player.accessorySystem) {
+            damage *= this.player.accessorySystem.getDamageModifier();
+            damage *= this.player.accessorySystem.rollCritical();
+          }
+
           enemy.takeDamage(damage);
+
+          if (this.player.accessorySystem) {
+            this.player.accessorySystem.onPlayerHitEnemy();
+          }
 
           if (!projectile.hitEnemies) projectile.hitEnemies = new Set();
           projectile.hitEnemies.add(enemy.id);
@@ -70,18 +127,92 @@ class CollisionSystem {
       }
     }
 
+    // 1b. Water Bomb vs enemies (NOT piercing — explodes on first contact)
+    for (const bomb of waterBombs) {
+      if (!bomb.active || bomb.hasExploded) continue;
+
+      for (const enemy of enemies) {
+        if (!enemy.active) continue;
+        if (enemy.isPhased) continue;
+
+        if (this.checkCircleCollision(bomb, enemy)) {
+          // Deal direct damage to hit enemy
+          let damage = bomb.getDamage() * randomDamageMultiplier();
+
+          if (this.player.accessorySystem) {
+            damage *= this.player.accessorySystem.getDamageModifier();
+            damage *= this.player.accessorySystem.rollCritical();
+          }
+
+          enemy.takeDamage(damage);
+
+          if (this.player.accessorySystem) {
+            this.player.accessorySystem.onPlayerHitEnemy();
+          }
+
+          // Splash damage to nearby enemies
+          const splashRadius = bomb.splashRadius || 80;
+          for (const other of enemies) {
+            if (!other.active || other === enemy) continue;
+            if (other.isPhased) continue;
+            const sdx = other.x - bomb.x;
+            const sdy = other.y - bomb.y;
+            if (sdx * sdx + sdy * sdy < splashRadius * splashRadius) {
+              let splashDamage = bomb.getDamage() * 0.5 * randomDamageMultiplier();
+              other.takeDamage(splashDamage);
+            }
+          }
+
+          // Trigger explosion + puddle
+          bomb.onHit(enemy);
+          break; // Only hit first enemy
+        }
+      }
+    }
+
+    // 1c. Earth Wave vs enemies (ring collision, stun, one hit per enemy)
+    for (const wave of earthWaves) {
+      if (!wave.active) continue;
+
+      for (const enemy of enemies) {
+        if (!enemy.active) continue;
+        if (enemy.isPhased) continue;
+        if (wave.hitEnemies.has(enemy.id)) continue;
+
+        if (wave.isEnemyInRing(enemy.x, enemy.y, enemy.size)) {
+          let damage = wave.getDamage() * randomDamageMultiplier();
+
+          if (this.player.accessorySystem) {
+            damage *= this.player.accessorySystem.getDamageModifier();
+            damage *= this.player.accessorySystem.rollCritical();
+          }
+
+          enemy.takeDamage(damage);
+
+          // Apply stun
+          if (enemy.stunTimer !== undefined) {
+            enemy.stunTimer = (wave.stunDuration || 1500) / 1000;
+          }
+
+          if (this.player.accessorySystem) {
+            this.player.accessorySystem.onPlayerHitEnemy();
+          }
+
+          wave.hitEnemies.add(enemy.id);
+        }
+      }
+    }
+
     // 2. Enemy-Player collisions (damage + physical push)
     for (const enemy of enemies) {
       if (!enemy.active) continue;
-      if (enemy.isPhased) continue; // Phase Wraith can't hurt while phased
+      if (enemy.isPhased) continue;
 
       if (this.checkCircleCollision(enemy, this.player)) {
-        // Deal contact damage
         if (enemy.contactDamage > 0) {
           this.player.takeDamage(enemy.contactDamage * randomDamageMultiplier());
         }
 
-        // Push apart (player pushed more, enemy pushed less)
         const dx = this.player.x - enemy.x;
         const dy = this.player.y - enemy.y;
         const distSq = dx * dx + dy * dy;
@@ -97,7 +228,6 @@ class CollisionSystem {
             enemy.x -= nx * overlap * 0.3;
             enemy.y -= ny * overlap * 0.3;
 
-            // Slimes bounce back after hitting player
             if (enemy.type === 'enemy-slime' && enemy.mergeState === 'none') {
               enemy.vx = -nx * 200;
               enemy.vy = -ny * 200;
@@ -113,6 +243,45 @@ class CollisionSystem {
 
     // 3. Enemy-Enemy push apart
     this.resolveEnemyEnemyCollisions(enemies);
+  }
+
+  applyPuddleSlows() {
+    if (!this.spellCaster) return;
+    const puddles = this.spellCaster.getActivePuddles();
+    if (puddles.length === 0) return;
+
+    const enemies = this.getAllActiveEnemies();
+    for (const enemy of enemies) {
+      if (!enemy.active) continue;
+
+      let inPuddle = false;
+      for (const puddle of puddles) {
+        const dx = enemy.x - puddle.x;
+        const dy = enemy.y - puddle.y;
+        if (dx * dx + dy * dy < puddle.radius * puddle.radius) {
+          inPuddle = true;
+          if (enemy.slowFactor !== undefined) {
+            enemy.slowFactor = puddle.slowFactor;
+          }
+          break;
+        }
+      }
+
+      if (!inPuddle && enemy.slowFactor !== undefined) {
+        enemy.slowFactor = 1.0;
+      }
+    }
+  }
+
+  updateEnemyStuns(dt) {
+    const enemies = this.getAllActiveEnemies();
+    for (const enemy of enemies) {
+      if (!enemy.active) continue;
+      if (enemy.stunTimer !== undefined && enemy.stunTimer > 0) {
+        enemy.stunTimer -= dt;
+        if (enemy.stunTimer < 0) enemy.stunTimer = 0;
+      }
+    }
   }
 
   resolveEnemyEnemyCollisions(enemies) {

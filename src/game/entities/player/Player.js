@@ -48,6 +48,21 @@ class Player extends Entity {
     // Structure pool reference for shield pylon damage reduction
     this.structurePool = null;
 
+    // Accessory system reference
+    this.accessorySystem = null;
+
+    // GameEngine reference for warp cancel on damage
+    this.gameEngine = null;
+
+    // Base HP regen
+    this.isInBase = false;
+    this.baseHpRegen = 5; // HP per second when in base
+    this.healParticles = [];
+
+    // Debuff: slow
+    this.slowFactor = 1.0;
+    this.slowTimer = 0; // seconds remaining
+
     // Wizard hat & staff particles
     this.staffParticles = [];
     this.castGlowRadius = 0;
@@ -72,6 +87,38 @@ class Player extends Entity {
     this.structurePool = structurePool;
   }
 
+  setAccessorySystem(sys) {
+    this.accessorySystem = sys;
+  }
+
+  respawn(x, y) {
+    this.hp = this.maxHp;
+    this.mana = this.maxMana;
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.active = true;
+    this.invincible = false;
+    this.invincibilityTimer = 0;
+    this.hitFlash = false;
+    this.hitFlashTimer = 0;
+    this.slowFactor = 1.0;
+    this.slowTimer = 0;
+    this.staffParticles = [];
+    this.healParticles = [];
+    this.castGlowRadius = 0;
+    this.castGlowAlpha = 0;
+  }
+
+  applySlow(factor, duration) {
+    // Always take the stronger slow; refresh duration
+    if (factor < this.slowFactor || this.slowTimer <= 0) {
+      this.slowFactor = factor;
+    }
+    this.slowTimer = Math.max(this.slowTimer, duration);
+  }
+
   triggerCastGlow() {
     this.castGlowRadius = 5;
     this.castGlowAlpha = 0.8;
@@ -81,6 +128,9 @@ class Player extends Entity {
     // No damage during i-frames
     if (this.invincible) return;
 
+    // Accessory invulnerability (Phoenix, Barrier)
+    if (this.accessorySystem && this.accessorySystem.isInvulnerable()) return;
+
     // Shield pylon damage reduction
     let finalAmount = amount;
     if (this.structurePool) {
@@ -89,6 +139,11 @@ class Player extends Entity {
     }
 
     this.hp = Math.max(0, this.hp - finalAmount);
+
+    // Cancel warp on damage
+    if (this.gameEngine && this.gameEngine.isWarping) {
+      this.gameEngine.cancelWarp();
+    }
 
     // Screen shake
     if (this.camera) {
@@ -103,11 +158,20 @@ class Player extends Entity {
     this.hitFlash = true;
     this.hitFlashTimer = 0;
 
-    console.log(`Player took ${amount} damage. HP: ${this.hp}/${this.maxHp}`);
+    // Notify accessory system of damage taken
+    if (this.accessorySystem) {
+      this.accessorySystem.onPlayerDamaged();
+    }
+
+    console.log(`Player took ${finalAmount.toFixed(0)} damage. HP: ${this.hp}/${this.maxHp}`);
 
     if (this.hp <= 0) {
+      // Phoenix Feather revive check
+      if (this.accessorySystem && this.accessorySystem.onPlayerDeath()) {
+        console.log('Phoenix Feather revived!');
+        return;
+      }
       console.log('Player died!');
-      // TODO: Game over logic
     }
   }
 
@@ -122,8 +186,9 @@ class Player extends Entity {
       const normalizedX = this.moveDirection.x / dirLength;
       const normalizedY = this.moveDirection.y / dirLength;
 
-      this.vx = normalizedX * this.speed;
-      this.vy = normalizedY * this.speed;
+      const speedMod = this.accessorySystem ? this.accessorySystem.getSpeedModifier() : 1.0;
+      this.vx = normalizedX * this.speed * speedMod * this.slowFactor;
+      this.vy = normalizedY * this.speed * speedMod * this.slowFactor;
     } else {
       this.vx = 0;
       this.vy = 0;
@@ -158,18 +223,56 @@ class Player extends Entity {
       }
     }
 
+    // Update slow debuff timer
+    if (this.slowTimer > 0) {
+      this.slowTimer -= dt;
+      if (this.slowTimer <= 0) {
+        this.slowTimer = 0;
+        this.slowFactor = 1.0;
+      }
+    }
+
     // Mana regeneration
     let regenRate = this.manaRegen;
     if (this.structurePool) {
       const boost = this.structurePool.getManaRegenBoost(this);
       regenRate += boost;
     }
+    if (this.accessorySystem) {
+      regenRate *= this.accessorySystem.getManaRegenModifier();
+    }
     if (this.mana < this.maxMana) {
       this.mana = Math.min(this.maxMana, this.mana + regenRate * dt);
     }
 
-    // Staff particles
-    if (Math.random() < 0.3) {
+    // Base HP regen with heal particles
+    if (this.isInBase && this.hp < this.maxHp && this.hp > 0) {
+      this.hp = Math.min(this.maxHp, this.hp + this.baseHpRegen * dt);
+      // Spawn green heal particles
+      if (Math.random() < 0.4) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 5 + Math.random() * 12;
+        this.healParticles.push({
+          x: this.x + Math.cos(angle) * dist,
+          y: this.y + Math.sin(angle) * dist,
+          vy: -25 - Math.random() * 15,
+          life: 0.7 + Math.random() * 0.3,
+          maxLife: 0.7 + Math.random() * 0.3,
+          size: 1.5 + Math.random() * 1.5,
+        });
+      }
+    }
+    // Update heal particles
+    for (let i = this.healParticles.length - 1; i >= 0; i--) {
+      const p = this.healParticles[i];
+      p.life -= dt;
+      p.y += p.vy * dt;
+      p.x += (Math.random() - 0.5) * 8 * dt;
+      if (p.life <= 0) this.healParticles.splice(i, 1);
+    }
+
+    // Staff particles (reduced for perf)
+    if (Math.random() < 0.15) {
       this.staffParticles.push({
         x: this.x + (Math.random() - 0.5) * 10,
         y: this.y + (Math.random() - 0.5) * 10,
@@ -218,11 +321,6 @@ class Player extends Entity {
     let renderColor = this.color;
     if (this.hitFlash) {
       renderColor = '#ffffff';
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#ffffff';
-    } else {
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = this.color;
     }
 
     // Cast glow (expanding ring)
@@ -240,6 +338,15 @@ class Player extends Entity {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(126, 220, 255, ${alpha * 0.7})`;
+      ctx.fill();
+    }
+
+    // Heal particles (floating green sparkles)
+    for (const p of this.healParticles) {
+      const alpha = p.life / p.maxLife;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(100, 255, 130, ${alpha * 0.8})`;
       ctx.fill();
     }
 
@@ -283,8 +390,6 @@ class Player extends Entity {
     ctx.beginPath();
     ctx.arc(this.x + 3, hatTipY, 2.5, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255, 215, 0, ${sparkleAlpha})`;
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
     ctx.fill();
 
     ctx.restore();

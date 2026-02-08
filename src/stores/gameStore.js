@@ -12,6 +12,20 @@ export const useGameStore = create((set, get) => ({
   mana: 100,
   maxMana: 100,
 
+  // Crystal state
+  crystalHP: 500,
+  crystalMaxHP: 500,
+  crystalUnderAttack: false,
+  crystalUpgradeLevels: { fortify: 0, regen: 0, earlyWarning: 0 },
+  crystalUpgradeTokens: 0,
+  crystalPanelOpen: false,
+
+  // Zone state
+  currentZone: 'base', // 'base' | 'dungeon'
+  dungeonFloor: 1, // Current dungeon floor (1-5)
+  isWarping: false,
+  warpProgress: 0,
+
   // Gesture state
   lastGesture: null,
   isDrawing: false,
@@ -29,7 +43,11 @@ export const useGameStore = create((set, get) => ({
   // Crafting - craftedSpells is now { spellId: tierLevel } e.g. { smokeBomb: 1, blinkStep: 2 }
   discoveredRecipes: [],
   craftedSpells: {},
-  equippedCrafted: [null, null],
+  equippedCrafted: [null, null, null, null, null], // 5 max, only first maxEquipSlots shown
+  maxEquipSlots: 2, // starts at 2, max 5 via Void Chests
+
+  // Accessories { id: tier }
+  accessories: {},
 
   // Spell Forge UI
   spellForgeOpen: false,
@@ -113,11 +131,13 @@ export const useGameStore = create((set, get) => ({
   },
 
   equipCraftedSpell: (slot, spellId) => set(state => {
+    if (slot >= state.maxEquipSlots) return state;
     const newEquipped = [...state.equippedCrafted];
     // Unequip from other slot if already equipped there
-    const otherSlot = slot === 0 ? 1 : 0;
-    if (newEquipped[otherSlot] === spellId) {
-      newEquipped[otherSlot] = null;
+    for (let i = 0; i < state.maxEquipSlots; i++) {
+      if (i !== slot && newEquipped[i] === spellId) {
+        newEquipped[i] = null;
+      }
     }
     newEquipped[slot] = spellId;
     return { equippedCrafted: newEquipped };
@@ -134,11 +154,39 @@ export const useGameStore = create((set, get) => ({
     return { discoveredRecipes: [...state.discoveredRecipes, spellId] };
   }),
 
+  addEquipSlot: () => set(state => ({
+    maxEquipSlots: Math.min(5, state.maxEquipSlots + 1),
+  })),
+
+  addAccessory: (id) => set(state => {
+    const current = state.accessories[id] || 0;
+    if (current >= 3) return state;
+    return { accessories: { ...state.accessories, [id]: current + 1 } };
+  }),
+
   setSpellForgeOpen: (open) => set({ spellForgeOpen: open }),
 
   clearPickupText: (id) => set(state => ({
     pickupTexts: state.pickupTexts.filter(t => t.id !== id),
   })),
+
+  // Crystal actions
+  setCrystalHP: (hp, maxHp) => set({ crystalHP: hp, crystalMaxHP: maxHp }),
+  setCrystalUnderAttack: (val) => set({ crystalUnderAttack: val }),
+  setCrystalUpgradeLevels: (levels) => set({ crystalUpgradeLevels: { ...levels } }),
+  addCrystalUpgradeTokens: (count) => set(state => ({
+    crystalUpgradeTokens: state.crystalUpgradeTokens + count,
+  })),
+  useCrystalUpgradeTokens: (count) => set(state => ({
+    crystalUpgradeTokens: state.crystalUpgradeTokens - count,
+  })),
+  setCrystalPanelOpen: (open) => set({ crystalPanelOpen: open }),
+
+  // Zone actions
+  setCurrentZone: (zone) => set({ currentZone: zone }),
+  setDungeonFloor: (floor) => set({ dungeonFloor: floor }),
+  setIsWarping: (val) => set({ isWarping: val }),
+  setWarpProgress: (val) => set({ warpProgress: val }),
 
   // Mana actions
   setMana: (mana) => set({ mana: Math.max(0, Math.min(get().maxMana, mana)) }),
@@ -154,7 +202,9 @@ export const useGameStore = create((set, get) => ({
     inventory: { mirrorShard: 0, voidCore: 0, etherWisp: 0, portalStone: 0, hexThread: 0 },
     discoveredRecipes: [],
     craftedSpells: {},
-    equippedCrafted: [null, null],
+    equippedCrafted: [null, null, null, null, null],
+    maxEquipSlots: 2,
+    accessories: {},
     mana: 100,
     pickupTexts: [],
   }),

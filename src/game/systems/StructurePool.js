@@ -101,12 +101,29 @@ class StructurePool {
     return nearest;
   }
 
+  getNearestUpgradeableInRange(x, y, range) {
+    let nearest = null;
+    let nearestDist = range;
+    for (const s of this.structures) {
+      if (!s.active || !s.built) continue;
+      if (!s.canUpgrade()) continue;
+      const dx = s.x - x;
+      const dy = s.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = s;
+      }
+    }
+    return nearest;
+  }
+
   getPlayerDamageReduction(player) {
     let reduction = 0;
     for (const s of this.structures) {
       if (!s.active || !s.built || s.type !== 'shieldPylon') continue;
       if (s.isPlayerInAura(player)) {
-        reduction = Math.max(reduction, s.config.damageReduction);
+        reduction = Math.max(reduction, s.damageReduction);
       }
     }
     return reduction;
@@ -117,7 +134,7 @@ class StructurePool {
     for (const s of this.structures) {
       if (!s.active || !s.built || s.type !== 'manaWell') continue;
       if (s.isPlayerInAura(player)) {
-        boost = Math.max(boost, s.config.manaRegenBoost);
+        boost = Math.max(boost, s.manaRegenBoost);
       }
     }
     return boost;

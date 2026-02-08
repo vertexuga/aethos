@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import GameEngine from '../game/engine/GameEngine';
 import { useGameStore } from '../stores/gameStore';
 import SpellForge from '../components/SpellForge';
+import CrystalUpgradePanel from '../components/CrystalUpgradePanel';
+import GameOverPanel from '../components/GameOverPanel';
+import { CRYSTAL_CONFIG } from '../game/data/crystalConfig';
 
 const GamePage = () => {
   const canvasRef = useRef(null);
@@ -12,8 +15,12 @@ const GamePage = () => {
   const setGameState = useGameStore(state => state.setGameState);
   const spellForgeOpen = useGameStore(state => state.spellForgeOpen);
   const setSpellForgeOpen = useGameStore(state => state.setSpellForgeOpen);
+  const crystalPanelOpen = useGameStore(state => state.crystalPanelOpen);
+  const setCrystalPanelOpen = useGameStore(state => state.setCrystalPanelOpen);
   const [entityCount, setEntityCount] = React.useState(0);
   const [fadeIn, setFadeIn] = useState(true);
+  const [gameOver, setGameOver] = useState(null); // null | 'crystal'
+  const [showMenuConfirm, setShowMenuConfirm] = useState(false);
 
   useEffect(() => {
     // Fade in from black after a frame
@@ -29,10 +36,17 @@ const GamePage = () => {
     // Update game state
     setGameState('playing');
 
-    // Update entity count periodically
+    // Update entity count and check game-over periodically
     const intervalId = setInterval(() => {
       if (engineRef.current && engineRef.current.entityManager) {
         setEntityCount(engineRef.current.entityManager.count);
+      }
+      // Check for game-over conditions (only crystal death)
+      if (engineRef.current) {
+        if (engineRef.current.crystal && !engineRef.current.crystal.active) {
+          setGameOver('crystal');
+          if (engineRef.current.gameLoop) engineRef.current.gameLoop.stop();
+        }
       }
     }, 100);
 
@@ -68,9 +82,30 @@ const GamePage = () => {
       }
     };
 
+    const handleCKey = (e) => {
+      if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        const store = useGameStore.getState();
+        const newOpen = !store.crystalPanelOpen;
+        setCrystalPanelOpen(newOpen);
+
+        if (engineRef.current && engineRef.current.gameLoop) {
+          if (newOpen) {
+            engineRef.current.gameLoop.stop();
+          } else {
+            engineRef.current.gameLoop.start();
+          }
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleTabKey);
-    return () => window.removeEventListener('keydown', handleTabKey);
-  }, [setSpellForgeOpen]);
+    window.addEventListener('keydown', handleCKey);
+    return () => {
+      window.removeEventListener('keydown', handleTabKey);
+      window.removeEventListener('keydown', handleCKey);
+    };
+  }, [setSpellForgeOpen, setCrystalPanelOpen]);
 
   const handleBackToMenu = () => {
     navigate('/');
@@ -80,6 +115,34 @@ const GamePage = () => {
     setSpellForgeOpen(false);
     if (engineRef.current && engineRef.current.gameLoop) {
       engineRef.current.gameLoop.start();
+    }
+  };
+
+  const handleCloseCrystalPanel = () => {
+    setCrystalPanelOpen(false);
+    if (engineRef.current && engineRef.current.gameLoop) {
+      engineRef.current.gameLoop.start();
+    }
+  };
+
+  const handleCrystalUpgrade = (type) => {
+    const store = useGameStore.getState();
+    const config = CRYSTAL_CONFIG.upgrades[type];
+    const currentTier = store.crystalUpgradeLevels[type] || 0;
+    const nextTier = currentTier + 1;
+    if (nextTier > config.maxTier) return;
+
+    const tierData = config.tiers[nextTier];
+
+    // Deduct materials
+    store.removeMaterials(tierData.cost);
+    // Deduct tokens
+    store.useCrystalUpgradeTokens(tierData.tokenCost);
+
+    // Apply upgrade to crystal entity
+    if (engineRef.current && engineRef.current.crystal) {
+      engineRef.current.crystal.upgrade(type);
+      store.setCrystalUpgradeLevels({ ...engineRef.current.crystal.upgradeLevels });
     }
   };
 
@@ -125,52 +188,82 @@ const GamePage = () => {
         }}
       />
 
-      {/* Back to Menu button */}
+      {/* Back to Menu button (small) */}
       <button
-        onClick={handleBackToMenu}
-        className="font-cinzel"
+        onClick={() => setShowMenuConfirm(true)}
         style={{
           position: 'absolute',
-          top: '20px',
-          left: '20px',
-          padding: '12px 24px',
-          backgroundColor: 'rgba(74, 143, 143, 0.3)',
-          color: '#f4e8c1',
-          border: '1px solid rgba(126, 184, 218, 0.5)',
-          borderRadius: '4px',
+          top: '12px',
+          left: '12px',
+          padding: '4px 10px',
+          backgroundColor: 'rgba(10, 10, 18, 0.5)',
+          color: 'rgba(126, 184, 218, 0.6)',
+          border: '1px solid rgba(126, 184, 218, 0.2)',
+          borderRadius: '3px',
           cursor: 'pointer',
-          fontSize: '16px',
-          textShadow: '0 0 10px rgba(244, 232, 193, 0.4)',
+          fontSize: '10px',
+          fontFamily: 'monospace',
           transition: 'all 0.3s ease',
           zIndex: 1000
         }}
         onMouseEnter={(e) => {
-          e.target.style.backgroundColor = 'rgba(74, 143, 143, 0.5)';
-          e.target.style.borderColor = 'rgba(126, 184, 218, 0.8)';
+          e.target.style.backgroundColor = 'rgba(74, 143, 143, 0.4)';
+          e.target.style.color = '#f4e8c1';
         }}
         onMouseLeave={(e) => {
-          e.target.style.backgroundColor = 'rgba(74, 143, 143, 0.3)';
-          e.target.style.borderColor = 'rgba(126, 184, 218, 0.5)';
+          e.target.style.backgroundColor = 'rgba(10, 10, 18, 0.5)';
+          e.target.style.color = 'rgba(126, 184, 218, 0.6)';
         }}
       >
-        Back to Menu
+        ESC Menu
       </button>
 
-      {/* FPS and Entity Count display */}
+      {/* Menu confirmation dialog */}
+      {showMenuConfirm && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 9998,
+          backgroundColor: 'rgba(10, 10, 18, 0.85)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: '20px',
+        }}>
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.4rem', color: '#f4e8c1' }}>
+            Return to menu? Progress will be lost.
+          </p>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <button
+              onClick={handleBackToMenu}
+              style={{
+                padding: '8px 24px', backgroundColor: 'rgba(205, 92, 92, 0.4)',
+                color: '#f4e8c1', border: '1px solid rgba(205, 92, 92, 0.6)',
+                borderRadius: '4px', cursor: 'pointer', fontSize: '14px',
+                fontFamily: "'Cinzel Decorative', cursive",
+              }}
+            >Leave</button>
+            <button
+              onClick={() => setShowMenuConfirm(false)}
+              style={{
+                padding: '8px 24px', backgroundColor: 'rgba(74, 143, 143, 0.3)',
+                color: '#f4e8c1', border: '1px solid rgba(126, 184, 218, 0.5)',
+                borderRadius: '4px', cursor: 'pointer', fontSize: '14px',
+                fontFamily: "'Cinzel Decorative', cursive",
+              }}
+            >Stay</button>
+          </div>
+        </div>
+      )}
+
+      {/* FPS and Entity Count display — left of wave counter */}
       <div
-        className="font-cormorant"
         style={{
           position: 'absolute',
-          top: '20px',
-          right: '20px',
-          padding: '8px 16px',
-          backgroundColor: 'rgba(10, 10, 18, 0.7)',
-          color: '#7eb8da',
-          border: '1px solid rgba(126, 184, 218, 0.3)',
-          borderRadius: '4px',
-          fontSize: '14px',
+          top: '12px',
+          right: '140px',
+          padding: '4px 10px',
+          color: 'rgba(126, 184, 218, 0.5)',
+          fontSize: '11px',
           fontFamily: 'monospace',
-          zIndex: 1000
+          zIndex: 1000,
+          pointerEvents: 'none',
         }}
       >
         FPS: {fps} | Entities: {entityCount}
@@ -178,6 +271,18 @@ const GamePage = () => {
 
       {/* Spell Forge slide-in panel (always mounted for animation) */}
       <SpellForge isOpen={spellForgeOpen} onClose={handleCloseForge} />
+
+      {/* Crystal Upgrade Panel (always mounted for animation) */}
+      <CrystalUpgradePanel
+        isOpen={crystalPanelOpen}
+        onClose={handleCloseCrystalPanel}
+        onUpgrade={handleCrystalUpgrade}
+      />
+
+      {/* Game Over overlay */}
+      {gameOver && (
+        <GameOverPanel reason={gameOver} onReturnToMenu={handleBackToMenu} />
+      )}
 
       {/* Fade-in overlay from title screen transition */}
       <div

@@ -7,9 +7,16 @@ class RenderPipeline {
     this.ctx = ctx;
     this.width = width;
     this.height = height;
+    this.screenMouseX = -1;
+    this.screenMouseY = -1;
   }
 
-  render(ctx, entityManager, inputSystem, interpolation, gestureUI, player, enemyPools, waveSpawner, materialDropPool, craftedSpellCaster, camera, wallSystem, structurePool) {
+  render(ctx, entityManager, inputSystem, interpolation, gestureUI, player, enemyPools, waveSpawner, materialDropPool, craftedSpellCaster, camera, wallSystem, structurePool, accessorySystem, crystal, teleportPad, zoneManager, spellCaster) {
+    this._wallSystem = wallSystem; // cache for HUD rendering
+    this._teleportPad = teleportPad;
+    this._zoneManager = zoneManager;
+    this._player = player;
+    this._camera = camera;
     // Layer 1: Background (already cleared by engine with #0a0a12)
 
     // --- World-space layers (camera transform applied) ---
@@ -19,10 +26,80 @@ class RenderPipeline {
     if (camera) this.renderBoundary(ctx, camera);
 
     // Interior walls
-    if (wallSystem) wallSystem.render(ctx);
+    if (wallSystem) wallSystem.render(ctx, camera);
 
-    // Structures (below entities)
-    if (structurePool) structurePool.render(ctx);
+    // Structures (below entities, base only)
+    if (structurePool && (!zoneManager || zoneManager.isInBase())) structurePool.render(ctx);
+
+    // Crystal (base defense target)
+    if (crystal && (!zoneManager || zoneManager.isInBase())) crystal.render(ctx);
+
+    // Teleport pad
+    if (teleportPad && (!zoneManager || zoneManager.isInBase())) teleportPad.render(ctx);
+
+    // Dungeon loot chests
+    if (zoneManager && zoneManager.isInDungeon()) {
+      for (const chest of zoneManager.dungeonLootChests) {
+        if (chest.active) chest.render(ctx);
+      }
+    }
+
+    // Dungeon floor portal (pulsing spiral in boss room)
+    if (this._dungeonPortalActive && this._dungeonBossRoom) {
+      const px = this._dungeonBossRoom.cx;
+      const py = this._dungeonBossRoom.cy;
+      const t = Date.now() / 1000;
+
+      // Outer glow
+      const glowRadius = 35 + Math.sin(t * 2) * 5;
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, glowRadius);
+      grad.addColorStop(0, 'rgba(179, 136, 255, 0.4)');
+      grad.addColorStop(0.6, 'rgba(124, 77, 255, 0.15)');
+      grad.addColorStop(1, 'rgba(124, 77, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(px, py, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rotating ring
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(t * 1.5);
+      ctx.strokeStyle = 'rgba(179, 136, 255, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 20, 0, Math.PI * 1.5);
+      ctx.stroke();
+      ctx.rotate(-t * 3);
+      ctx.strokeStyle = 'rgba(124, 77, 255, 0.5)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 1.2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Center diamond
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(t);
+      const ds = 6 + Math.sin(t * 3) * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -ds);
+      ctx.lineTo(ds, 0);
+      ctx.lineTo(0, ds);
+      ctx.lineTo(-ds, 0);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(179, 136, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Water puddles (ground effect, below entities)
+    if (spellCaster) {
+      const puddles = spellCaster.getActivePuddles();
+      for (const puddle of puddles) {
+        puddle.render(ctx);
+      }
+    }
 
     // Layer 2: Game entities (projectiles, explosions)
     entityManager.render(ctx, interpolation);
@@ -35,7 +112,7 @@ class RenderPipeline {
     // Layer 4: Enemies (render all pools)
     if (enemyPools) {
       for (const key in enemyPools) {
-        enemyPools[key].render(ctx);
+        enemyPools[key].render(ctx, interpolation);
       }
     }
 
@@ -47,6 +124,16 @@ class RenderPipeline {
     // Layer 6: Crafted spell effects
     if (craftedSpellCaster) {
       craftedSpellCaster.render(ctx);
+    }
+
+    // Layer 6b: Accessory world effects (fire trail, puddles, guardians, barrier)
+    if (accessorySystem) {
+      accessorySystem.renderWorldEffects(ctx);
+    }
+
+    // Lightning bolt effects (above entities, world space)
+    if (spellCaster) {
+      spellCaster.getLightningEffect().render(ctx);
     }
 
     // Layer 7: Drawing trail (renders above entities, in world space)
@@ -66,9 +153,82 @@ class RenderPipeline {
       this.renderHUD(ctx, player, waveSpawner, craftedSpellCaster, structurePool);
     }
 
+    // Accessory HUD (above material inventory)
+    if (accessorySystem) {
+      accessorySystem.setMousePos(this.screenMouseX, this.screenMouseY);
+      accessorySystem.renderAccessoryHUD(ctx);
+    }
+
+    // Crystal HUD HP bar (always visible, below player HP/mana)
+    if (crystal) {
+      this.renderCrystalHUD(ctx, crystal);
+    }
+
+    // Crystal under attack warning (flashing vignette + text when in dungeon)
+    if (crystal && crystal.isUnderAttack && this._zoneManager && this._zoneManager.isInDungeon()) {
+      const flashAlpha = 0.08 + 0.08 * Math.sin(Date.now() / 200);
+      ctx.fillStyle = `rgba(255, 30, 30, ${flashAlpha})`;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 60, 60, ${0.6 + 0.3 * Math.sin(Date.now() / 250)})`;
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('CRYSTAL UNDER ATTACK!', ctx.canvas.width / 2, 40);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+
+    // Crystal low HP critical warning (all zones)
+    if (crystal && crystal.isLowHP && crystal.active) {
+      const flashAlpha = 0.12 + 0.12 * Math.sin(Date.now() / 150);
+      // Red vignette overlay
+      const vignetteGrad = ctx.createRadialGradient(
+        ctx.canvas.width / 2, ctx.canvas.height / 2, ctx.canvas.width * 0.2,
+        ctx.canvas.width / 2, ctx.canvas.height / 2, ctx.canvas.width * 0.7
+      );
+      vignetteGrad.addColorStop(0, 'rgba(255, 0, 0, 0)');
+      vignetteGrad.addColorStop(1, `rgba(255, 0, 0, ${flashAlpha})`);
+      ctx.fillStyle = vignetteGrad;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      // "CRYSTAL HP CRITICAL!" text
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 40, 40, ${0.7 + 0.3 * Math.sin(Date.now() / 120)})`;
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('CRYSTAL HP CRITICAL!', ctx.canvas.width / 2, 60);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+
+    // Player respawn overlay
+    if (this.playerRespawning) {
+      // Dark overlay
+      ctx.fillStyle = 'rgba(5, 5, 15, 0.6)';
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      ctx.save();
+      ctx.textAlign = 'center';
+
+      // "Respawning in X..." text
+      const timeLeft = Math.max(0, this.respawnTimer).toFixed(1);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText(`Respawning in ${timeLeft}...`, ctx.canvas.width / 2, ctx.canvas.height / 2);
+
+      // Subtitle
+      ctx.font = '14px monospace';
+      ctx.fillStyle = 'rgba(126, 184, 218, 0.7)';
+      ctx.fillText('You will respawn at the crystal', ctx.canvas.width / 2, ctx.canvas.height / 2 + 30);
+
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+
     // Minimap
     if (camera && player) {
-      this.renderMinimap(ctx, camera, player, enemyPools, wallSystem, structurePool);
+      this.renderMinimap(ctx, camera, player, enemyPools, wallSystem, structurePool, crystal, zoneManager);
     }
   }
 
@@ -81,43 +241,46 @@ class RenderPipeline {
 
     ctx.save();
 
-    // Glowing teal/cyan energy walls with inner gradient
-    const wallColor = `rgba(0, 220, 220, ${0.15 * pulse})`;
-    const edgeColor = `rgba(0, 255, 255, ${0.6 * pulse})`;
+    // Different colors for base vs dungeon
+    const inDungeon = this._zoneManager && this._zoneManager.isInDungeon();
+    const edgeColor = inDungeon
+      ? `rgba(120, 60, 180, ${0.6 * pulse})`
+      : `rgba(0, 255, 255, ${0.6 * pulse})`;
+    const fadeColor = inDungeon
+      ? 'rgba(100, 50, 160, 0)'
+      : 'rgba(0, 220, 220, 0)';
 
     // Top wall
     const topGrad = ctx.createLinearGradient(0, 0, 0, thickness);
     topGrad.addColorStop(0, edgeColor);
-    topGrad.addColorStop(1, 'rgba(0, 220, 220, 0)');
+    topGrad.addColorStop(1, fadeColor);
     ctx.fillStyle = topGrad;
     ctx.fillRect(0, 0, ww, thickness);
 
     // Bottom wall
     const botGrad = ctx.createLinearGradient(0, wh, 0, wh - thickness);
     botGrad.addColorStop(0, edgeColor);
-    botGrad.addColorStop(1, 'rgba(0, 220, 220, 0)');
+    botGrad.addColorStop(1, fadeColor);
     ctx.fillStyle = botGrad;
     ctx.fillRect(0, wh - thickness, ww, thickness);
 
     // Left wall
     const leftGrad = ctx.createLinearGradient(0, 0, thickness, 0);
     leftGrad.addColorStop(0, edgeColor);
-    leftGrad.addColorStop(1, 'rgba(0, 220, 220, 0)');
+    leftGrad.addColorStop(1, fadeColor);
     ctx.fillStyle = leftGrad;
     ctx.fillRect(0, 0, thickness, wh);
 
     // Right wall
     const rightGrad = ctx.createLinearGradient(ww, 0, ww - thickness, 0);
     rightGrad.addColorStop(0, edgeColor);
-    rightGrad.addColorStop(1, 'rgba(0, 220, 220, 0)');
+    rightGrad.addColorStop(1, fadeColor);
     ctx.fillStyle = rightGrad;
     ctx.fillRect(ww - thickness, 0, thickness, wh);
 
     // Thin bright edge lines
     ctx.strokeStyle = edgeColor;
     ctx.lineWidth = 2;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
     ctx.strokeRect(1, 1, ww - 2, wh - 2);
 
     ctx.restore();
@@ -128,7 +291,7 @@ class RenderPipeline {
     const barWidth = 200;
     const barHeight = 12;
     const barX = 10;
-    const barY = 70; // Below Back to Menu button
+    const barY = 40; // Below small ESC Menu button
 
     // Background (dark)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -184,6 +347,110 @@ class RenderPipeline {
     ctx.font = '11px monospace';
     ctx.fillText('[Tab] Spell Forge', barX, manaBarY + manaBarHeight + 16);
 
+    // Zone indicator
+    const store = useGameStore.getState();
+    const zone = store.currentZone;
+    ctx.fillStyle = zone === 'dungeon' ? 'rgba(124, 77, 255, 0.8)' : 'rgba(0, 229, 255, 0.6)';
+    ctx.font = 'bold 12px monospace';
+    if (zone === 'dungeon') {
+      const floor = store.dungeonFloor || 1;
+      ctx.fillText(`DUNGEON F${floor}`, barX, manaBarY + manaBarHeight + 30);
+    } else {
+      ctx.fillText('BASE', barX, manaBarY + manaBarHeight + 30);
+    }
+
+    // Crystal upgrade hint
+    if (zone === 'base') {
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.4)';
+      ctx.font = '11px monospace';
+      ctx.fillText('[C] Crystal Upgrades', barX + 50, manaBarY + manaBarHeight + 30);
+    }
+
+    // Warp progress ring around player (centered on screen)
+    if (store.isWarping) {
+      const centerX = ctx.canvas.width / 2;
+      const centerY = ctx.canvas.height / 2;
+      const warpRadius = 30;
+      const progress = store.warpProgress;
+
+      // Background ring
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, warpRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(124, 77, 255, 0.3)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Progress ring
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, warpRadius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+      ctx.strokeStyle = 'rgba(179, 136, 255, 0.9)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Text
+      ctx.fillStyle = 'rgba(179, 136, 255, 0.9)';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('WARPING...', centerX, centerY + warpRadius + 18);
+      ctx.fillText(`${(3 - progress * 3).toFixed(1)}s`, centerX, centerY + 4);
+      ctx.textAlign = 'left';
+    }
+
+    // Dungeon warp hint
+    if (zone === 'dungeon' && !store.isWarping) {
+      ctx.fillStyle = 'rgba(179, 136, 255, 0.5)';
+      ctx.font = '11px monospace';
+      ctx.fillText('[V] Warp to Base', barX, manaBarY + manaBarHeight + 44);
+    }
+
+    // Loot chest prompt
+    if (this._zoneManager && this._zoneManager.isInDungeon() && player) {
+      for (const chest of this._zoneManager.dungeonLootChests) {
+        if (!chest.active || chest.opened) continue;
+        if (chest.isPlayerInRange(player)) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 215, 0, 0.95)';
+          ctx.font = 'bold 14px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('[E] Open Chest', ctx.canvas.width / 2, ctx.canvas.height / 2 + 50);
+          ctx.textAlign = 'left';
+          ctx.restore();
+          break;
+        }
+      }
+    }
+
+    // Dungeon floor portal prompt
+    if (this._dungeonPortalActive && this._dungeonBossRoom && player && this._zoneManager && this._zoneManager.isInDungeon()) {
+      const dx = player.x - this._dungeonBossRoom.cx;
+      const dy = player.y - this._dungeonBossRoom.cy;
+      if (dx * dx + dy * dy < 80 * 80) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(179, 136, 255, 0.95)';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        const nextFloor = (useGameStore.getState().dungeonFloor || 1) + 1;
+        const label = nextFloor > 5 ? '[E] Return to Base' : `[E] Descend to Floor ${nextFloor}`;
+        ctx.fillText(label, ctx.canvas.width / 2, ctx.canvas.height / 2 + 50);
+        ctx.textAlign = 'left';
+        ctx.restore();
+      }
+    }
+
+    // Teleport pad prompt
+    if (this._teleportPad && player && this._zoneManager && this._zoneManager.isInBase()) {
+      if (this._teleportPad.isPlayerInRange(player)) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(179, 136, 255, 0.95)';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        const nextFloor = useGameStore.getState().dungeonFloor || 1;
+        ctx.fillText(`[E] Enter Dungeon (Floor ${nextFloor})`, ctx.canvas.width / 2, ctx.canvas.height / 2 + 50);
+        ctx.textAlign = 'left';
+        ctx.restore();
+      }
+    }
+
     // Structure build / repair panel (slides in from right)
     if (structurePool) {
       this.renderStructurePanel(ctx, player, structurePool);
@@ -197,9 +464,9 @@ class RenderPipeline {
 
       ctx.save();
 
-      // Position top-right, below the React FPS/Entities overlay
+      // Position top-right
       const waveX = ctx.canvas.width - 120;
-      const waveY = 60;
+      const waveY = 40;
 
       // Wave state-specific display
       if (waveState === 'waiting') {
@@ -209,29 +476,26 @@ class RenderPipeline {
 
         ctx.fillStyle = `rgba(126, 184, 218, ${alpha})`;
         ctx.font = '16px monospace';
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = 'rgba(126, 184, 218, 0.8)';
         ctx.fillText(`Wave ${waveNum}`, waveX, waveY);
         ctx.fillText(`incoming...`, waveX, waveY + 20);
-      } else if (waveState === 'cleared') {
-        // Flash "Wave Cleared!" in gold
-        ctx.fillStyle = '#d4a574';
-        ctx.font = 'bold 18px monospace';
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = '#d4a574';
-        ctx.fillText('Wave Cleared!', waveX - 20, waveY + 10);
+      } else if (waveState === 'cooldown') {
+        // Show next wave countdown
+        ctx.fillStyle = 'rgba(126, 184, 218, 0.6)';
+        ctx.font = '16px monospace';
+        ctx.fillText(`Wave ${waveNum}`, waveX, waveY);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '12px monospace';
+        ctx.fillText(`Enemies: ${enemyCount}`, waveX, waveY + 18);
       } else {
-        // Normal display (spawning or active)
+        // Normal display (spawning)
         ctx.fillStyle = 'rgba(126, 184, 218, 0.8)';
         ctx.font = '16px monospace';
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = 'rgba(126, 184, 218, 0.8)';
         ctx.fillText(`Wave ${waveNum}`, waveX, waveY);
 
         // Enemy count
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = '14px monospace';
-        ctx.shadowBlur = 0;
         ctx.fillText(`Enemies: ${enemyCount}`, waveX, waveY + 20);
       }
 
@@ -239,7 +503,42 @@ class RenderPipeline {
     }
   }
 
-  renderMinimap(ctx, camera, player, enemyPools, wallSystem, structurePool) {
+  renderCrystalHUD(ctx, crystal) {
+    const barWidth = 200;
+    const barHeight = 8;
+    const barX = 10;
+    const barY = 125; // Below zone/warp hints
+
+    const hpPercent = crystal.hp / crystal.maxHp;
+
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // Crystal HP color
+    let barColor;
+    if (hpPercent > 0.6) barColor = '#00e5ff';
+    else if (hpPercent > 0.3) barColor = '#ffc107';
+    else barColor = '#f44336';
+
+    ctx.fillStyle = barColor;
+    ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight);
+
+    // Label
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.8)';
+    ctx.font = '10px monospace';
+    ctx.fillText(`Crystal: ${Math.ceil(crystal.hp)}/${crystal.maxHp}`, barX + 5, barY + 7);
+
+    // Warning flash if under attack
+    if (crystal.isUnderAttack) {
+      const flashAlpha = 0.3 + 0.3 * Math.sin(Date.now() / 150);
+      ctx.strokeStyle = `rgba(255, 50, 50, ${flashAlpha})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+    }
+  }
+
+  renderMinimap(ctx, camera, player, enemyPools, wallSystem, structurePool, crystal, zoneManager) {
     const mapSize = 160;
     const padding = 10;
     const mapX = ctx.canvas.width - mapSize - padding;
@@ -271,8 +570,34 @@ class RenderPipeline {
       }
     }
 
-    // Structures (colored diamonds)
-    if (structurePool) {
+    // Dungeon rooms (only in dungeon)
+    const inDungeon = zoneManager && zoneManager.isInDungeon();
+    if (inDungeon && zoneManager.dungeonData) {
+      ctx.fillStyle = 'rgba(60, 40, 80, 0.5)';
+      for (const room of zoneManager.dungeonData.rooms) {
+        ctx.fillRect(
+          mapX + room.x * scaleX,
+          mapY + room.y * scaleY,
+          Math.max(2, room.w * scaleX),
+          Math.max(2, room.h * scaleY)
+        );
+      }
+      // Highlight boss room in red
+      const bossRoom = zoneManager.dungeonData.bossRoom;
+      if (bossRoom) {
+        ctx.strokeStyle = 'rgba(244, 67, 54, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(
+          mapX + bossRoom.x * scaleX,
+          mapY + bossRoom.y * scaleY,
+          Math.max(2, bossRoom.w * scaleX),
+          Math.max(2, bossRoom.h * scaleY)
+        );
+      }
+    }
+
+    // Structures (colored diamonds, base only)
+    if (structurePool && !inDungeon) {
       for (const s of structurePool.getActive()) {
         const sx = mapX + s.x * scaleX;
         const sy = mapY + s.y * scaleY;
@@ -285,6 +610,46 @@ class RenderPipeline {
         ctx.closePath();
         ctx.fill();
       }
+    }
+
+    // Crystal (cyan diamond, base only)
+    if (crystal && !inDungeon) {
+      const crx = mapX + crystal.x * scaleX;
+      const cry = mapY + crystal.y * scaleY;
+      ctx.fillStyle = crystal.isUnderAttack ? '#f44336' : '#00e5ff';
+      ctx.beginPath();
+      ctx.moveTo(crx, cry - 4);
+      ctx.lineTo(crx + 3, cry);
+      ctx.lineTo(crx, cry + 3);
+      ctx.lineTo(crx - 3, cry);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Dungeon loot chests on minimap (gold dots)
+    if (inDungeon && zoneManager.dungeonLootChests) {
+      for (const chest of zoneManager.dungeonLootChests) {
+        if (!chest.active || chest.opened) continue;
+        const cx = mapX + chest.x * scaleX;
+        const cy = mapY + chest.y * scaleY;
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      }
+    }
+
+    // Dungeon floor portal on minimap (pulsing purple diamond)
+    if (this._dungeonPortalActive && this._dungeonBossRoom && inDungeon) {
+      const px = mapX + this._dungeonBossRoom.cx * scaleX;
+      const py = mapY + this._dungeonBossRoom.cy * scaleY;
+      const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 300);
+      ctx.fillStyle = `rgba(179, 136, 255, ${pulse})`;
+      ctx.beginPath();
+      ctx.moveTo(px, py - 4);
+      ctx.lineTo(px + 4, py);
+      ctx.lineTo(px, py + 4);
+      ctx.lineTo(px - 4, py);
+      ctx.closePath();
+      ctx.fill();
     }
 
     // Enemies (small red dots)
@@ -310,14 +675,12 @@ class RenderPipeline {
       camera.viewHeight * scaleY
     );
 
-    // Player (bright cyan dot with glow)
+    // Player (bright cyan dot)
     const px = mapX + player.x * scaleX;
     const py = mapY + player.y * scaleY;
     ctx.beginPath();
     ctx.arc(px, py, 3, 0, Math.PI * 2);
     ctx.fillStyle = '#7eb8da';
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = '#7eb8da';
     ctx.fill();
 
     ctx.restore();
@@ -328,9 +691,6 @@ class RenderPipeline {
     if (!mat) return;
 
     ctx.save();
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = mat.color;
-
     if (key === 'mirrorShard') {
       // Crystal shard polygon
       ctx.beginPath();
@@ -455,25 +815,102 @@ class RenderPipeline {
     const startX = 10;
     const startY = ctx.canvas.height - 44;
     const iconSize = 16;
+    const slotWidth = 38;
 
     ctx.save();
     ctx.font = '11px monospace';
 
-    let offsetX = 0;
-    for (const key of Object.keys(MATERIAL_CONFIG)) {
-      const count = inventory[key] || 0;
+    let hoveredKey = null;
+    let hoveredSlotX = 0;
 
-      // Draw material icon (SVG-style canvas rendering)
-      this.renderMaterialIcon(ctx, key, startX + offsetX, startY, iconSize);
+    let offsetX = 0;
+    const keys = Object.keys(MATERIAL_CONFIG);
+    for (const key of keys) {
+      const count = inventory[key] || 0;
+      const slotX = startX + offsetX;
+
+      // Check hover
+      if (this.screenMouseX >= slotX && this.screenMouseX < slotX + slotWidth &&
+          this.screenMouseY >= startY - 2 && this.screenMouseY < startY + iconSize + 4) {
+        hoveredKey = key;
+        hoveredSlotX = slotX;
+        // Highlight background
+        ctx.fillStyle = 'rgba(126, 184, 218, 0.12)';
+        ctx.fillRect(slotX - 2, startY - 3, slotWidth, iconSize + 8);
+      }
+
+      // Draw material icon
+      this.renderMaterialIcon(ctx, key, slotX, startY, iconSize);
 
       // Count
       ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
       ctx.fillStyle = count > 0 ? '#f4e8c1' : '#555';
-      ctx.fillText(count.toString(), startX + offsetX + iconSize + 2, startY + iconSize - 4);
+      ctx.fillText(count.toString(), slotX + iconSize + 2, startY + iconSize - 4);
 
-      offsetX += 38;
+      offsetX += slotWidth;
     }
+
+    ctx.restore();
+
+    // Render tooltip for hovered material
+    if (hoveredKey) {
+      this.renderMaterialTooltip(ctx, hoveredKey, hoveredSlotX, startY);
+    }
+  }
+
+  renderMaterialTooltip(ctx, key, slotX, slotY) {
+    const mat = MATERIAL_CONFIG[key];
+    if (!mat) return;
+
+    const store = useGameStore.getState();
+    const count = store.inventory[key] || 0;
+
+    // Drop source mapping
+    const dropSources = {
+      mirrorShard: 'Spell Thief',
+      voidCore: 'Gravity Well',
+      etherWisp: 'Phase Wraith / Slime',
+      portalStone: 'Rift Caller',
+      hexThread: 'Curse Hexer',
+    };
+
+    const tipW = 180;
+    const tipH = 62;
+    let tipX = slotX;
+    let tipY = slotY - tipH - 8;
+
+    // Keep on screen
+    if (tipX + tipW > ctx.canvas.width) tipX = ctx.canvas.width - tipW - 5;
+    if (tipY < 0) tipY = slotY + 24;
+
+    ctx.save();
+
+    // Background
+    ctx.fillStyle = 'rgba(8, 10, 22, 0.92)';
+    ctx.strokeStyle = mat.color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(tipX, tipY, tipW, tipH, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    // Name + count
+    ctx.fillStyle = mat.color;
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(`${mat.name}  x${count}`, tipX + 8, tipY + 15);
+
+    // Description
+    ctx.fillStyle = 'rgba(200, 200, 220, 0.7)';
+    ctx.font = '9px monospace';
+    ctx.fillText(mat.description.substring(0, 30), tipX + 8, tipY + 30);
+    if (mat.description.length > 30) {
+      ctx.fillText(mat.description.substring(30), tipX + 8, tipY + 40);
+    }
+
+    // Drop source
+    ctx.fillStyle = 'rgba(150, 180, 200, 0.5)';
+    ctx.font = '9px monospace';
+    ctx.fillText(`Drops: ${dropSources[key] || '?'}`, tipX + 8, tipY + 55);
 
     ctx.restore();
   }
@@ -499,10 +936,7 @@ class RenderPipeline {
       ctx.beginPath();
       ctx.roundRect(panelX, panelY, panelW, panelH, 6);
       ctx.fill();
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = unbuilt.config.color;
       ctx.stroke();
-      ctx.shadowBlur = 0;
 
       // Title
       ctx.fillStyle = unbuilt.config.color;
@@ -537,8 +971,6 @@ class RenderPipeline {
       ctx.font = '13px monospace';
       if (canAfford) {
         ctx.fillStyle = 'rgba(255, 200, 50, 0.95)';
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = 'rgba(255, 200, 50, 0.5)';
         ctx.fillText('[E] Build', panelX + 10, panelY + panelH - 14);
       } else {
         ctx.fillStyle = 'rgba(150, 150, 150, 0.6)';
@@ -549,31 +981,70 @@ class RenderPipeline {
       return;
     }
 
+    // Check for nearby upgradeable structure
+    const upgradeable = structurePool.getNearestUpgradeableInRange(player.x, player.y, 60);
+    if (upgradeable) {
+      const tierLabels = { 1: 'I', 2: 'II', 3: 'III' };
+      const currentLabel = tierLabels[upgradeable.tier] || upgradeable.tier;
+      const nextLabel = tierLabels[upgradeable.tier + 1] || (upgradeable.tier + 1);
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 200, 50, 0.9)';
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`[E] Upgrade ${upgradeable.config.name} (${currentLabel} → ${nextLabel})`, ctx.canvas.width / 2, ctx.canvas.height / 2 + 40);
+      ctx.textAlign = 'left';
+      ctx.restore();
+      return;
+    }
+
     // Check for nearby damaged built structure
     const damaged = structurePool.getNearestDamagedInRange(player.x, player.y, 60);
     if (damaged) {
       ctx.save();
       ctx.fillStyle = 'rgba(255, 200, 50, 0.9)';
       ctx.font = '14px monospace';
-      ctx.shadowBlur = 4;
-      ctx.shadowColor = 'rgba(255, 200, 50, 0.6)';
-      ctx.fillText('[E] Repair', ctx.canvas.width / 2 - 40, ctx.canvas.height / 2 + 40);
+      ctx.fillText('[E] Repair Structure', ctx.canvas.width / 2 - 60, ctx.canvas.height / 2 + 40);
       ctx.restore();
+      return;
+    }
+
+    // Check for nearby unbuilt door slot
+    if (this._wallSystem) {
+      const unbuiltDoor = this._wallSystem.getNearestUnbuiltDoorInRange(player.x, player.y, 80);
+      if (unbuiltDoor) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.9)';
+        ctx.font = '14px monospace';
+        ctx.fillText('[E] Build Door', ctx.canvas.width / 2 - 50, ctx.canvas.height / 2 + 40);
+        ctx.restore();
+        return;
+      }
+
+      const damagedDoor = this._wallSystem.getNearestDamagedDoorInRange(player.x, player.y, 80);
+      if (damagedDoor) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 200, 50, 0.9)';
+        ctx.font = '14px monospace';
+        ctx.fillText('[E] Repair Door', ctx.canvas.width / 2 - 50, ctx.canvas.height / 2 + 40);
+        ctx.restore();
+      }
     }
   }
 
   renderSpellSlots(ctx, craftedSpellCaster) {
     const store = useGameStore.getState();
     const equipped = store.equippedCrafted;
+    const maxSlots = store.maxEquipSlots;
     const centerX = ctx.canvas.width / 2;
     const slotY = ctx.canvas.height - 50;
     const slotSize = 36;
     const gap = 10;
+    const totalWidth = maxSlots * slotSize + (maxSlots - 1) * gap;
 
     ctx.save();
 
-    for (let i = 0; i < 2; i++) {
-      const x = centerX - (slotSize + gap / 2) + i * (slotSize + gap);
+    for (let i = 0; i < maxSlots; i++) {
+      const x = centerX - totalWidth / 2 + i * (slotSize + gap);
       const spellId = equipped[i];
 
       // Slot background
@@ -640,8 +1111,6 @@ class RenderPipeline {
 
       ctx.globalAlpha = alpha;
       ctx.fillStyle = matConfig ? matConfig.color : '#ffffff';
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = matConfig ? matConfig.color : '#ffffff';
       ctx.fillText(
         `+${text.count} ${matConfig ? matConfig.name : text.type}`,
         ctx.canvas.width / 2 - 50,
